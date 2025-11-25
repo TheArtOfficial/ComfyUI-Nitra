@@ -58,7 +58,7 @@ def load_config():
     """Load configuration based on git branch"""
     # Branch to URL mapping
     branch_urls = {
-        'master': 'https://app.nitralabs.ai',
+        'main': 'https://app.nitralabs.ai',
         'stg': 'https://appstaging.nitralabs.ai',
         'dev': 'http://localhost:3000',
     }
