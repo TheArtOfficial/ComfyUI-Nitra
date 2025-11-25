@@ -52,7 +52,7 @@ def get_git_branch() -> str:
             return result.stdout.strip()
     except Exception:
         pass
-    return 'dev'  # Default fallback
+    return 'main'  # Default fallback
 
 def load_config():
     """Load configuration based on git branch"""
