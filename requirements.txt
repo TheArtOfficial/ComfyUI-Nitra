@@ -1,0 +1,17 @@
+# ComfyUI-Nitra Custom Node Requirements
+# These are dependencies needed by Nitra that aren't in ComfyUI's main requirements.txt
+
+# For comfy_setup.py script
+requests>=2.31.0
+huggingface_hub[hf_transfer]
+hf_xet
+keyring>=24.3.0
+# Installation:
+# pip install -r custom_nodes/ComfyUI-Nitra/requirements.txt
+
+# Note: ComfyUI already provides:
+# - aiohttp (for server routes in nitra_server.py)
+# - pyyaml (for config parsing)
+# - subprocess, os, sys (standard library)
+# - logging (standard library)
+# - torch, torchvision, transformers, etc.
