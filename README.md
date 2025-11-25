@@ -1,216 +1,128 @@
 # ComfyUI-Nitra
 
-A comprehensive ComfyUI extension that provides authentication, model management, workflow installation, and environment updates through an integrated interface.
+Nitra is the premium automation and optimization suite for ComfyUI. It bundles curated workflow libraries, a powerful environment optimizer, CUDA and build-tool installers, and a polished account experience directly inside the ComfyUI sidebar.
+
+## Table of Contents
+- [Overview](#overview)
+- [Requirements](#requirements)
+- [Installation](#installation)
+  - [Quick Install](#quick-install)
+  - [Manual Install](#manual-install)
+- [Getting Started](#getting-started)
+- [Feature Highlights](#feature-highlights)
+  - [ComfyUI Optimizer](#comfyui-optimizer)
+  - [Workflow Library](#workflow-library)
+  - [Model Downloads](#model-downloads)
+  - [User Configuration](#user-configuration)
+  - [Help & Community](#help--community)
+- [Troubleshooting](#troubleshooting)
+- [Support](#support)
+
+## Overview
+
+Once installed, the Nitra panel appears in ComfyUI with an Auth0-powered sign-in. After logging in, you unlock:
+
+- Guided environment upgrades with live hardware checks.
+- A browsable gallery of cinematic workflows with video previews.
+- A sortable model catalog wired into ComfyUI’s folder structure.
+- Device registration, extra model path management, and contact tools—all in one place.
+
+## Requirements
+
+- A working ComfyUI install on Windows, Linux, or macOS.
+- Python 3.10+ (matching your ComfyUI environment).
+- Internet access for login, downloads, and upgrade scripts.
+- Windows users: PowerShell 5.1+ and `winget` for automated installers.
+- Linux/macOS users: sudo privileges for CUDA or driver updates.
 
 ## Installation
 
-### Requirements
-- ComfyUI installation
-- Python 3.8 or higher
-- Git
-
-### Steps
-
-1. **Clone the repository into your ComfyUI custom_nodes directory:**
+### Quick Install
 
 ```bash
-cd ComfyUI/custom_nodes
+cd /path/to/ComfyUI/custom_nodes
 git clone https://github.com/TheArtOfficial/ComfyUI-Nitra.git
 ```
 
-2. **Install dependencies:**
+On Windows PowerShell:
 
-```bash
-cd ComfyUI-Nitra
-pip install -r requirements.txt
+```powershell
+cd C:\path\to\ComfyUI\custom_nodes
+git clone https://github.com/TheArtOfficial/ComfyUI-Nitra.git
 ```
 
-3. **Restart ComfyUI**
+Restart ComfyUI so the extension initializes.
 
-After restarting, you'll see a pink **"nitra"** button in the top menu bar.
+### Manual Install
+
+1. Download the latest ComfyUI-Nitra release archive.
+2. Extract it into `ComfyUI/custom_nodes/ComfyUI-Nitra`.
+3. Install Python dependencies inside your ComfyUI environment:
+
+   ```bash
+   cd ComfyUI/custom_nodes/ComfyUI-Nitra
+   pip install -r requirements.txt
+   ```
+
+4. Relaunch ComfyUI.
 
 ## Getting Started
 
-### First Time Setup
+1. Open ComfyUI and click the Nitra icon in the sidebar.
+2. Choose **Sign in with Nitra**, complete the Auth0 flow, and return to ComfyUI.
+3. Use the left-hand navigation to switch between the Optimizer, Workflows, Models, User Configuration, and Help tabs.
+4. Logout returns you to the “Welcome to Nitra” screen without launching an external browser window.
 
-1. Click the **"nitra"** button in the top menu bar
-2. You'll be prompted to authenticate. Choose one of the following methods:
-   - **Username/Password**: Enter your credentials and click "Login"
-   - **Google OAuth**: Click "Login with Google"
-   - **GitHub OAuth**: Click "Login with GitHub"
+## Feature Highlights
 
-Once authenticated, you'll have access to all nitra features.
+### ComfyUI Optimizer
 
-## Features & Usage
+- **Live environment snapshot**: See your current platform, Python version, Torch build, CUDA runtime, and detected GPUs before running any upgrade.
+- **One-click installers**: Launch modals for PyTorch, SageAttention, ONNX, Triton (Windows), and more via dedicated buttons.
+- **Smart upgrade guidance**: PyTorch modal highlights whether the selected build already matches your system, and warns when SageAttention needs reinstalling.
+- **Advanced Tools grid** (bottom of the Optimizer tab):
+  - **CUDA Toolkit Manager**: Pick “latest,” “match PyTorch,” or enter a custom version. Works on Windows (via `winget`) and Linux, with nvcc path reminders after upgrades.
+  - **Install Microsoft Build Tools**: Installs or reinstalls Visual Studio 2022 Build Tools with the Desktop C++ workload. Status badge turns green when detected.
+  - **Open Build Tools Shell**: Launches the Visual Studio Developer PowerShell with the correct architecture (x64, x86, ARM) in a new console window.
 
-### Optimizer Tab
+### Workflow Library
 
-The Optimizer tab provides options to update and maintain your ComfyUI installation.
+- **Cinematic previews**: Each workflow card supports autoplaying video or image previews while you hover.
+- **Search & category filters**: Narrow results by tags, categories, or free-text search, then select specific recipes to deploy.
+- **Multi-select actions**: Select all, deselect all, or mix-and-match before clicking “Install Selected Workflows.”
+- **Subscription cues**: Locked items display “Subscribe to download,” while active accounts can install directly from the card grid.
 
-#### Updating ComfyUI
+### Model Downloads
 
-1. Select your update preferences:
-   - **Update ComfyUI**: Updates the core ComfyUI installation
-   - **Update Nitra**: Updates the Nitra extension itself
-   - **Update Custom Nodes**: Updates all custom nodes
-   - **Update Python Packages**: Updates Python dependencies
+- **Resizable table layout**: Column widths can be dragged to fit long model names or descriptions.
+- **Folder-aware filtering**: Filter by install folder (checkpoints, LORAs, etc.) to keep downloads organized.
+- **Bulk queueing**: Select multiple models, optionally enter a HuggingFace token for private mirrors, and download in one click.
+- **Preview gating**: Locked models show a friendly prompt to upgrade before download.
 
-2. Configure Torch/CUDA settings (optional):
-   - Select your desired **Torch Version**
-   - Select your **CUDA Version** (if using NVIDIA GPU)
+### User Configuration
 
-3. Click **"Start Update"** to begin
+- **Extra model paths**: Append additional directories that ComfyUI should scan (writes to `extra_model_paths.yaml`).
+- **HuggingFace token storage**: Securely keep a token inside Nitra to speed up HF-hosted downloads.
+- **Device Manager**: View machine slots, rename devices, refresh status, and register/replace the current machine with a single button.
 
-The update will run in the background, allowing you to continue using ComfyUI. You'll receive a notification when it's complete.
+### Help & Community
 
-### Models Tab
-
-Download and manage AI models directly from the Nitra interface.
-
-#### Downloading Models
-
-1. Navigate to the **"Models"** tab
-2. Browse the available models in the list
-3. Click the checkbox next to models you want to download
-4. Click **"Download Selected Models"**
-
-Models will download in the background. You can continue working while they download.
-
-#### HuggingFace Token (Optional)
-
-Some models require authentication:
-1. Enter your HuggingFace token in the field at the top
-2. The token will be used for all model downloads that require it
-
-### Workflows Tab
-
-Install pre-configured ComfyUI workflows.
-
-#### Installing Workflows
-
-1. Navigate to the **"Workflows"** tab
-2. Browse available workflows
-3. Select the workflows you want to install
-4. Click **"Download Selected Workflows"**
-
-Workflows are installed automatically and will appear in your ComfyUI workflows directory.
-
-### User Configuration Tab
-
-Configure custom settings for your ComfyUI installation.
-
-#### Setting Up Extra Model Paths
-
-If you store models in a separate directory:
-
-1. Navigate to the **"User Configuration"** tab
-2. In the **"Extra Model Path"** field, enter the absolute path to your models directory
-   - Windows example: `D:\Models`
-   - Linux/Mac example: `/mnt/models` or `/Users/username/Models`
-3. Click **"Save Settings"**
-
-This automatically creates an `extra_model_paths.yaml` file in your ComfyUI root directory, pointing to your custom model location.
-
-**To remove the extra path:**
-1. Clear the text field
-2. Click **"Save Settings"**
-3. The `extra_model_paths.yaml` file will be automatically deleted
-
-#### HuggingFace Token Storage
-
-Save your HuggingFace token for persistent use:
-
-1. Enter your token in the **"Huggingface Token (Stored Locally Only)"** field
-2. Click **"Save Settings"**
-
-Your token will be securely stored and automatically used for model downloads.
-
-### Help Tab
-
-Get support and submit inquiries.
-
-#### Reporting Issues
-
-Found a bug or technical issue?
-- Click **"Report Issues on GitHub"** to open the issues page
-- This takes you directly to the GitHub repository where you can submit bug reports
-
-#### Business Inquiries
-
-For business-related questions, partnerships, or general inquiries:
-
-1. Navigate to the **"How can we help?"** tab
-2. Fill out the contact form:
-   - **Name** (required)
-   - **Email** (required)
-   - **Phone** (optional)
-   - **Country Code** (if providing phone)
-   - **Company** (optional)
-   - **Message** (required)
-3. Optionally, check **"Subscribe to newsletter"** for updates
-4. Click **"Send Message"**
-
-**Note:** For technical issues and bugs, please use GitHub Issues instead of the contact form.
-
-## Keyboard Shortcut
-
-You can open the Nitra dialog at any time using:
-- **Windows/Linux**: `Ctrl + L`
-- **Mac**: `Cmd + L`
-
-## License & Subscription
-
-Your subscription status is displayed at the top of the interface after logging in. Different subscription tiers may have access to different features and models.
-
-To manage your subscription, visit [nitralabs.ai](https://nitralabs.ai).
+- **License status**: Sidebar badge highlights trial, active, or expired states—plus a “Purchase License” link to Nitra’s pricing page.
+- **Contact form**: Send business inquiries directly from the Help tab, including name, email, phone, and company details.
+- **Quick links**: Jump to GitHub issues or Nitra support resources without leaving ComfyUI.
 
 ## Troubleshooting
 
-### Button Not Appearing
-If the nitra button doesn't appear after installation:
-1. Verify the extension is in `ComfyUI/custom_nodes/ComfyUI-Nitra`
-2. Check that all dependencies are installed: `pip install -r requirements.txt`
-3. Restart ComfyUI completely
-4. Check the browser console (F12) for any error messages
-
-### Authentication Issues
-If you're having trouble logging in:
-1. Clear your browser cache and cookies for the ComfyUI page
-2. Try a different authentication method (OAuth instead of password, or vice versa)
-3. Check that you're using the correct credentials
-
-### Model Download Failures
-If models fail to download:
-1. Check your internet connection
-2. Verify you have sufficient disk space
-3. For gated models, ensure your HuggingFace token is valid and has access
-4. Check the ComfyUI console for detailed error messages
-
-### Update Failures
-If updates fail:
-1. Ensure you have write permissions to the ComfyUI directory
-2. Check that no ComfyUI processes are holding files
-3. Review the logs in the ComfyUI console
-4. Try updating components individually rather than all at once
+- **Optimizer buttons disabled**: Confirm you’re on a supported OS (Windows or Linux for CUDA/Build Tools) and that the status banner isn’t reporting an error.
+- **CUDA path not updating**: After installing a toolkit, reopen the shell you use to launch ComfyUI so `nvcc` is rediscovered.
+- **Models/workflows locked**: Verify your subscription status in the sidebar badge; it will prompt you to purchase if access is limited.
+- **Device registration stalled**: Use the Refresh button inside User Configuration → Registered Machines, then try “Register / Replace Device” again.
 
 ## Support
 
-- **Technical Issues**: [GitHub Issues](https://github.com/TheArtOfficial/ComfyUI-Nitra/issues)
-- **Business Inquiries**: Use the contact form in the Help tab
-- **Documentation**: This README
+- Product documentation: [https://hi.nitralabs.ai/help](https://hi.nitralabs.ai/help)
+- Email: support@nitralabs.ai
+- Community Discord: Available inside the Nitra sidebar under **Help → Community**
 
-## Privacy & Security
-
-- Authentication tokens are stored securely in your browser's local storage
-- Your HuggingFace token is stored locally in `ComfyUI/user/default/nitra/config.toml`
-- No sensitive data is transmitted to third parties beyond authentication providers (Google, GitHub)
-- All communication with the Nitra backend uses HTTPS
-
-## Updates
-
-Nitra can update itself through the Optimizer tab. We recommend keeping the extension up to date for the latest features and security improvements.
-
----
-
-**Developed by AO Labs** | [nitralabs.ai](https://nitralabs.ai)
+Have feedback or need a feature? Open the Nitra panel, go to **Help → Contact Support**, and include system details so we can assist quickly.
 
