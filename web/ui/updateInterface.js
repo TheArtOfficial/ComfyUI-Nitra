@@ -351,6 +351,21 @@ export function createUpdateInterface() {
                     <div id="nitra-license-status" data-base-style="${licenseStatusBaseStyle}" style="${licenseStatusBaseStyle}; ${licenseStatus.style}">
                     ${licenseStatus.message}
                 </div>
+                <div id="nitra-device-warning" style="
+                    display: none;
+                    color: #f87171;
+                    font-weight: 600;
+                    margin-top: 6px;
+                    font-size: 0.9em;
+                    text-transform: uppercase;
+                    letter-spacing: 0.04em;
+                "></div>
+                <div id="nitra-device-warning-subtext" style="
+                    display: none;
+                    color: #fca5a5;
+                    font-size: 0.85em;
+                    margin-top: 4px;
+                ">Register in the User Configuration tab</div>
                     ${!state.currentLicenseStatus ? '<div id="nitra-license-loading" style="font-size: 0.8em; color: #bdbdbd; margin-top: 4px;">Fetching from server...</div>' : ''}
                 <div id="nitra-purchase-link" style="margin: 8px 0; ${licenseStatus.showPurchaseLink ? 'display: block;' : 'display: none;'}">
                     <a href="${getWebsiteBaseUrl()}/#pricing" target="_blank" style="

@@ -51,6 +51,14 @@ export function invalidateDeviceIdentityCache() {
     cachedIdentity = null;
 }
 
+export function setDeviceRegistrationState(isRegistered) {
+    window.__nitraDeviceRegistered = !!isRegistered;
+}
+
+export function isCurrentDeviceRegistered() {
+    return Boolean(window.__nitraDeviceRegistered);
+}
+
 export async function getDeviceIdentity(forceRefresh = false) {
     if (!forceRefresh && cachedIdentity) {
         return cachedIdentity;
@@ -80,6 +88,13 @@ export async function fetchRegisteredDevices() {
         const errorMessage = data?.error || 'Failed to load device registrations';
         throw new Error(errorMessage);
     }
+
+    const devices = Array.isArray(data?.devices) ? data.devices : [];
+    const currentHash = cachedIdentity?.fingerprint_hash || cachedIdentity?.fingerprintHash;
+    const isRegistered = devices.some(device =>
+        currentHash && device.fingerprintHash && currentHash === device.fingerprintHash
+    );
+    setDeviceRegistrationState(isRegistered);
 
     return data;
 }
