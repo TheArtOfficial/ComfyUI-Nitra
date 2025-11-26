@@ -2,7 +2,8 @@ FROM runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PYTHON_KEYRING_BACKEND=keyrings.alt.file.PlaintextKeyring
 
 # System deps
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
@@ -11,6 +12,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     software-properties-common build-essential \
     aria2 \
     jq \
+    ninja-build \
     && rm -rf /var/lib/apt/lists/*
 
 # Python 3.12 (via deadsnakes)

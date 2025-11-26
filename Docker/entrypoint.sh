@@ -66,6 +66,8 @@ if sys.version_info < (3, 12):
     raise SystemExit(f"Python 3.12+ is required, but {ver} is available.")
 PY
 
+export PYTHON_KEYRING_BACKEND=keyrings.alt.file.PlaintextKeyring
+
 APP_DIR="$COMFY_DIR/ComfyUI"
 VENV_DIR="$APP_DIR/venv"
 VENV_PY="$VENV_DIR/bin/python"
@@ -119,6 +121,9 @@ fi
 log "Upgrading pip/setuptools/wheel inside venv"
 "$VENV_PIP" install --upgrade pip setuptools wheel
 
+log "Installing keyring helpers"
+"$VENV_PIP" install keyrings.alt
+
 log "Installing PyTorch 2.8.0 stack"
 "$VENV_PIP" install torch==2.8.0 torchvision torchaudio --extra-index-url "$TORCH_INDEX_URL"
 
@@ -127,13 +132,8 @@ if [ -f "$APP_DIR/requirements.txt" ]; then
   "$VENV_PIP" install -r "$APP_DIR/requirements.txt" --extra-index-url "$TORCH_INDEX_URL"
 fi
 
-log "Building SageAttention from source"
-SAGE_BUILD_DIR="$(mktemp -d)"
-git clone "$SAGE_REPO" "$SAGE_BUILD_DIR/SageAttention"
-pushd "$SAGE_BUILD_DIR/SageAttention" >/dev/null
-"$VENV_PY" setup.py install
-popd >/dev/null
-rm -rf "$SAGE_BUILD_DIR"
+log "Installing SageAttention 2.2.0"
+"$VENV_PIP" install sageattention==2.2.0 --no-build-isolation
 
 if [ -f "$MANAGER_DIR/requirements.txt" ]; then
   log "Installing ComfyUI-Manager requirements"
