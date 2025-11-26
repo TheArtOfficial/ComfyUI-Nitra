@@ -1974,14 +1974,46 @@ export async function handleOptimizerRestart(button) {
         button.textContent = "Restarting ComfyUI...";
         
         try {
-            await fetch('/nitra/restart', { method: 'GET' });
-            // If we get here, restart didn't work as expected
-            alert("Restart command sent, but server didn't restart. Please restart manually.");
+            const response = await fetch('/nitra/restart', { method: 'GET' });
+            let result = null;
+            try {
+                result = await response.json();
+            } catch (parseError) {
+                // response might close before JSON is returned; that's fine
+                console.log("Nitra: Restart response closed before JSON parsed", parseError);
+            }
+
+            console.log("Nitra: Restart response received", {
+                status: response.status,
+                ok: response.ok,
+                payload: result
+            });
+
+            if (response.ok) {
+                if (result && result.success === false) {
+                    const message = result?.error || "Restart failed.";
+                    alert(message);
+                    button.disabled = false;
+                    button.textContent = originalText;
+                    return;
+                }
+
+                console.log("Nitra: Restart accepted by server (response ok)");
+                button.textContent = "Restarting...";
+                setTimeout(() => {
+                    button.disabled = false;
+                    button.textContent = originalText;
+                }, 4000);
+                return;
+            }
+
+            const message = result?.error || `Restart failed (${response.status})`;
+            alert(message);
             button.disabled = false;
             button.textContent = originalText;
         } catch (error) {
             // Connection error is expected when server restarts
-            console.log("Nitra: Restart initiated (connection closed as expected)");
+            console.log("Nitra: Restart initiated (connection closed as expected)", error);
             button.disabled = false;
             button.textContent = originalText;
             // Don't show error alert - this is expected behavior

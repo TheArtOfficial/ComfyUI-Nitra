@@ -2564,13 +2564,52 @@ async def update_comfyui(request):
             status=500
         )
 
+def _build_restart_command(sageattention_installed: bool) -> list[str]:
+    """Prepare the argv list used to restart ComfyUI."""
+    sys_argv = sys.argv.copy()
+    if '--windows-standalone-build' in sys_argv:
+        sys_argv.remove('--windows-standalone-build')
+
+    if '--use-sage-attention' in sys_argv:
+        sys_argv.remove('--use-sage-attention')
+
+    if sageattention_installed:
+        sys_argv.append('--use-sage-attention')
+        logger.info("Nitra: Adding --use-sage-attention flag (sageattention is installed)")
+    else:
+        logger.info("Nitra: Not adding --use-sage-attention flag (sageattention not installed)")
+
+    if sys_argv[0].endswith("__main__.py"):
+        module_name = os.path.basename(os.path.dirname(sys_argv[0]))
+        return [sys.executable, '-m', module_name] + sys_argv[1:]
+    if sys.platform.startswith('win32'):
+        return ['"' + sys.executable + '"', '"' + sys_argv[0] + '"'] + sys_argv[1:]
+    return [sys.executable] + sys_argv
+
+
+def _spawn_restart_thread(cmds: list[str], exit_after: bool = False) -> None:
+    """Spawn a daemon thread that restarts the current process after a short delay."""
+    import time
+
+    def _do_restart():
+        try:
+            time.sleep(1)
+            if exit_after:
+                os._exit(0)
+            else:
+                os.execv(sys.executable, cmds)
+        except Exception as restart_exc:
+            logger.error(f"Nitra: Restart thread failed: {restart_exc}")
+
+    threading.Thread(target=_do_restart, daemon=True).start()
+
+
 @routes.get('/nitra/restart')
 def restart_comfyui(request):
     """Restart ComfyUI server - based on ComfyUI-Manager implementation"""
     try:
         debug_log("Restart endpoint called")
-        
-        # Check if sageattention is installed
+
         sageattention_installed = False
         try:
             result = subprocess.run(
@@ -2581,55 +2620,22 @@ def restart_comfyui(request):
             )
             sageattention_installed = result.returncode == 0
             logger.info(f"Nitra: Sageattention installed: {sageattention_installed}")
-            logger.info(f"Nitra: pip show sageattention return code: {result.returncode}")
-            if result.stdout:
-                logger.info(f"Nitra: pip show sageattention stdout: {result.stdout[:200]}...")
-            if result.stderr:
-                logger.info(f"Nitra: pip show sageattention stderr: {result.stderr[:200]}...")
         except Exception as e:
             logger.warning(f"Failed to check sageattention installation: {e}")
             sageattention_installed = False
-        
-        # Handle CLI session restart (like ComfyUI-Manager)
+
         if '__COMFY_CLI_SESSION__' in os.environ:
             with open(os.path.join(os.environ['__COMFY_CLI_SESSION__'] + '.reboot'), 'w'):
                 pass
-            
-            print("\nRestarting...\n\n")
-            exit(0)
-        
-        # Legacy mode restart (like ComfyUI-Manager)
-        print("\nRestarting... [Legacy Mode]\n\n")
-        
-        sys_argv = sys.argv.copy()
-        if '--windows-standalone-build' in sys_argv:
-            sys_argv.remove('--windows-standalone-build')
-        
-        # Remove --use-sage-attention flag if it exists (we'll add it back if needed)
-        if '--use-sage-attention' in sys_argv:
-            sys_argv.remove('--use-sage-attention')
-        
-        # Add --use-sage-attention flag only if sageattention is currently installed
-        logger.info(f"Nitra: Checking sageattention installation - installed: {sageattention_installed}")
-        if sageattention_installed:
-            sys_argv.append('--use-sage-attention')
-            logger.info("Nitra: Adding --use-sage-attention flag (sageattention is installed)")
-        else:
-            logger.info("Nitra: Not adding --use-sage-attention flag (sageattention not installed)")
-        
-        if sys_argv[0].endswith("__main__.py"):  # this is a python module
-            module_name = os.path.basename(os.path.dirname(sys_argv[0]))
-            cmds = [sys.executable, '-m', module_name] + sys_argv[1:]
-        elif sys.platform.startswith('win32'):
-            cmds = ['"' + sys.executable + '"', '"' + sys_argv[0] + '"'] + sys_argv[1:]
-        else:
-            cmds = [sys.executable] + sys_argv
-        
-        print(f"Command: {cmds}", flush=True)
-        
-        # Use os.execv which replaces the process (doesn't return)
-        os.execv(sys.executable, cmds)
-        
+            logger.info("Nitra: CLI session restart requested, scheduling exit")
+            _spawn_restart_thread([], exit_after=True)
+            return web.json_response({"success": True, "message": "Restarting ComfyUI (CLI session)"})
+
+        logger.info("Nitra: Restarting ComfyUI [legacy mode]")
+        cmds = _build_restart_command(sageattention_installed)
+        _spawn_restart_thread(cmds)
+        return web.json_response({"success": True, "message": "Restart command accepted"})
+
     except Exception as e:
         logger.error(f"Nitra: Restart error: {e}")
         return web.json_response(
