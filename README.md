@@ -1,8 +1,11 @@
 # ComfyUI-Nitra
 
+> **Usage License:** Nitra Labs grants you a limited license to run the Nitra plugin inside ComfyUI for its intended functionality in commercial or non-commercial workflows. Any other commercial use—including copying, modifying, sublicensing, or redistributing this code or derivative works—requires prior written consent from Nitra Labs.
+
 Nitra is the premium automation and optimization suite for ComfyUI. It bundles curated workflow libraries, a powerful environment optimizer, CUDA and build-tool installers, and a polished account experience directly inside the ComfyUI sidebar.
 
 ## Table of Contents
+
 - [Overview](#overview)
 - [Requirements](#requirements)
 - [Installation](#installation)
@@ -121,8 +124,7 @@ Restart ComfyUI so the extension initializes.
 ## Support
 
 - Product documentation: [https://hi.nitralabs.ai/help](https://hi.nitralabs.ai/help)
-- Email: support@nitralabs.ai
+- Email: [support@nitralabs.ai](mailto:support@nitralabs.ai)
 - Community Discord: Available inside the Nitra sidebar under **Help → Community**
 
 Have feedback or need a feature? Open the Nitra panel, go to **Help → Contact Support**, and include system details so we can assist quickly.
-
