@@ -1,4 +1,4 @@
-# ComfyUI-Nitra
+<img width="960" height="544" alt="NitraNoOutline" src="https://github.com/user-attachments/assets/cedba9aa-5f63-4836-beda-a59c9e0fec94" />
 
 > **Usage License:** Nitra Labs grants you a limited license to run the Nitra plugin inside ComfyUI for its intended functionality in commercial or non-commercial workflows. Any other commercial use—including copying, modifying, sublicensing, or redistributing this code or derivative works—requires prior written consent from Nitra Labs.
 
