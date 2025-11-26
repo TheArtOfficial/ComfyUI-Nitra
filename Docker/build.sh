@@ -1,5 +1,4 @@
 #!/bin/bash
-set -euo pipefail
 
 # Configuration
 IMAGE_NAME="theartofficial/comfyui-nitra"

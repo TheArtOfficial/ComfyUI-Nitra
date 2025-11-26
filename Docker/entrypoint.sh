@@ -1,13 +1,75 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+log() {
+  printf '\n[%s] %s\n' "$(date +'%H:%M:%S')" "$1"
+}
+
+ensure_cmd() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "Required command not found: $1" >&2
+    exit 1
+  fi
+}
+
+install_python312() {
+  if command -v apt-get >/dev/null 2>&1; then
+    log "Installing python3.12 via apt"
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    if ! apt-get install -y python3.12 python3.12-venv python3.12-distutils python3.12-dev; then
+      log "Adding deadsnakes PPA to obtain python3.12"
+      apt-get install -y software-properties-common gnupg ca-certificates
+      add-apt-repository -y ppa:deadsnakes/ppa
+      apt-get update
+      apt-get install -y python3.12 python3.12-venv python3.12-distutils python3.12-dev
+    fi
+  else
+    echo "python3.12 is required. Install it manually or set PYTHON_BIN to an existing interpreter." >&2
+    exit 1
+  fi
+}
+
 COMFY_DIR=${COMFY_DIR:-/workspace}
 TORCH_INDEX_URL=${TORCH_INDEX_URL:-https://download.pytorch.org/whl/cu128}
+NITRA_REPO=${NITRA_REPO:-https://github.com/TheArtOfficial/ComfyUI-Nitra.git}
+NITRA_BRANCH=${NITRA_BRANCH:-}
+MANAGER_REPO=${MANAGER_REPO:-https://github.com/Comfy-Org/ComfyUI-Manager.git}
+SAGE_REPO=${SAGE_REPO:-https://github.com/thu-ml/SageAttention.git}
+PYTHON_DEFAULT_BIN=${PYTHON_DEFAULT_BIN:-python3.12}
+
 export LICENSE_SERVER_URL LICENSE_KEY
+
+if [ -n "${PYTHON_BIN:-}" ]; then
+  ensure_cmd "$PYTHON_BIN"
+else
+  PY_FOUND="$(command -v "$PYTHON_DEFAULT_BIN" || true)"
+  if [ -z "$PY_FOUND" ]; then
+    log "python3.12 not detected. Attempting installation..."
+    install_python312
+    PY_FOUND="$(command -v "$PYTHON_DEFAULT_BIN" || true)"
+    if [ -z "$PY_FOUND" ]; then
+      echo "Failed to locate python3.12 even after installation attempt. Set PYTHON_BIN to a valid interpreter." >&2
+      exit 1
+    fi
+  fi
+  PYTHON_BIN="$PY_FOUND"
+fi
+
+ensure_cmd git
+ensure_cmd "$PYTHON_BIN"
+
+"$PYTHON_BIN" - <<'PY'
+import sys
+if sys.version_info < (3, 12):
+    ver = ".".join(map(str, sys.version_info[:3]))
+    raise SystemExit(f"Python 3.12+ is required, but {ver} is available.")
+PY
 
 APP_DIR="$COMFY_DIR/ComfyUI"
 VENV_DIR="$APP_DIR/venv"
 VENV_PY="$VENV_DIR/bin/python"
+VENV_PIP="$VENV_DIR/bin/pip"
 
 # Trust mounted repositories to avoid Git safe.directory warnings
 git config --global --add safe.directory '*' || true
@@ -15,55 +77,84 @@ git config --global --add safe.directory '*' || true
 # Ensure base ComfyUI directory exists
 mkdir -p "$COMFY_DIR"
 
-# Clone ComfyUI if it doesn't exist
+log "Ensuring ComfyUI repository"
 if [ ! -d "$APP_DIR/.git" ]; then
-  echo "Cloning ComfyUI..."
   git clone https://github.com/comfyanonymous/ComfyUI.git "$APP_DIR"
 else
-  echo "ComfyUI already cloned, skipping clone..."
+  log "ComfyUI already cloned, reusing existing copy"
 fi
 
-# Clone ComfyUI-Nitra custom node if missing
-CUSTOM_NODE_DIR="$APP_DIR/custom_nodes/ComfyUI-Nitra"
-if [ ! -d "$CUSTOM_NODE_DIR/.git" ]; then
-  echo "Cloning ComfyUI-Nitra custom node..."
-  git clone https://github.com/TheArtOfficial/ComfyUI-Nitra.git "$CUSTOM_NODE_DIR"
+CUSTOM_NODES_DIR="$APP_DIR/custom_nodes"
+CUSTOM_NODE_DIR="$CUSTOM_NODES_DIR/ComfyUI-Nitra"
+MANAGER_DIR="$CUSTOM_NODES_DIR/ComfyUI-Manager"
+
+mkdir -p "$CUSTOM_NODES_DIR"
+
+log "Ensuring ComfyUI-Manager"
+if [ ! -d "$MANAGER_DIR/.git" ]; then
+  git clone "$MANAGER_REPO" "$MANAGER_DIR"
 else
-  echo "ComfyUI-Nitra already present, skipping clone..."
+  log "ComfyUI-Manager already present, skipping clone"
 fi
-echo "Checking out ComfyUI-Nitra stg branch..."
-git -C "$CUSTOM_NODE_DIR" fetch origin
-git -C "$CUSTOM_NODE_DIR" checkout stg
 
-# Set up venv and install requirements (whether just cloned or already existed)
-VENV_PIP="$VENV_DIR/bin/pip"
+log "Ensuring ComfyUI-Nitra custom node"
+if [ ! -d "$CUSTOM_NODE_DIR/.git" ]; then
+  git clone "$NITRA_REPO" "$CUSTOM_NODE_DIR"
+else
+  log "ComfyUI-Nitra already present, skipping clone"
+fi
+if [ -n "$NITRA_BRANCH" ]; then
+  log "Checking out ComfyUI-Nitra branch: $NITRA_BRANCH"
+  git -C "$CUSTOM_NODE_DIR" fetch origin "$NITRA_BRANCH" || true
+  git -C "$CUSTOM_NODE_DIR" checkout "$NITRA_BRANCH"
+else
+  log "Using ComfyUI-Nitra repository default branch"
+fi
 
 if [ ! -x "$VENV_PY" ]; then
-  echo "Creating Python venv at $VENV_DIR..."
-  python3.12 -m venv "$VENV_DIR"
+  log "Creating Python venv at $VENV_DIR"
+  "$PYTHON_BIN" -m venv "$VENV_DIR"
 fi
 
-"$VENV_PIP" install --upgrade pip setuptools wheel || true
+log "Upgrading pip/setuptools/wheel inside venv"
+"$VENV_PIP" install --upgrade pip setuptools wheel
+
+log "Installing PyTorch 2.8.0 stack"
+"$VENV_PIP" install torch==2.8.0 torchvision torchaudio --extra-index-url "$TORCH_INDEX_URL"
+
 if [ -f "$APP_DIR/requirements.txt" ]; then
-  echo "Installing ComfyUI requirements..."
-  "$VENV_PIP" install -r "$APP_DIR/requirements.txt" --extra-index-url "$TORCH_INDEX_URL" || true
+  log "Installing ComfyUI requirements"
+  "$VENV_PIP" install -r "$APP_DIR/requirements.txt" --extra-index-url "$TORCH_INDEX_URL"
+fi
+
+log "Building SageAttention from source"
+SAGE_BUILD_DIR="$(mktemp -d)"
+git clone "$SAGE_REPO" "$SAGE_BUILD_DIR/SageAttention"
+pushd "$SAGE_BUILD_DIR/SageAttention" >/dev/null
+"$VENV_PY" setup.py install
+popd >/dev/null
+rm -rf "$SAGE_BUILD_DIR"
+
+if [ -f "$MANAGER_DIR/requirements.txt" ]; then
+  log "Installing ComfyUI-Manager requirements"
+  "$VENV_PIP" install -r "$MANAGER_DIR/requirements.txt"
 fi
 
 # Install ComfyUI-Nitra requirements into the same venv
 CUSTOM_REQS="$CUSTOM_NODE_DIR/requirements.txt"
 if [ -f "$CUSTOM_REQS" ]; then
-  echo "Installing ComfyUI-Nitra requirements..."
-  "$VENV_PIP" install -r "$CUSTOM_REQS" || true
+  log "Installing ComfyUI-Nitra requirements"
+  "$VENV_PIP" install -r "$CUSTOM_REQS"
 fi
 
 
-# Install JupyterLab using system Python
-echo "Installing JupyterLab..."
-python3.12 -m pip install jupyterlab pexpect || true
+# Install JupyterLab using python3.12
+log "Installing JupyterLab"
+"$PYTHON_BIN" -m pip install jupyterlab pexpect || true
 
-# Start JupyterLab in the background using system Python
-echo "Starting JupyterLab on port 8888..."
-SHELL=/bin/bash python3.12 -m jupyterlab \
+# Start JupyterLab in the background using python3.12
+log "Starting JupyterLab on port 8888"
+SHELL=/bin/bash "$PYTHON_BIN" -m jupyterlab \
   --ip=0.0.0.0 \
   --port=8888 \
   --no-browser \
@@ -166,7 +257,7 @@ else
 fi
 
 # Start ComfyUI in background (without exec so shell stays as PID 1)
-"$VENV_PY" "$APP_DIR/main.py" --listen --port 8188 --preview-method auto"$@" &
+"$VENV_PY" "$APP_DIR/main.py" --use-sage-attention --listen --port 8188 --preview-method auto "$@" &
 COMFYUI_PID=$!
 
 # Function to handle cleanup
