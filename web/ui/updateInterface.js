@@ -3,7 +3,7 @@
 
 import * as state from '../core/state.js';
 import { getWebsiteBaseUrl } from '../core/config.js';
-import { formatLicenseStatus } from '../license/status.js';
+import { formatLicenseStatus, initializeLicenseStatus } from '../license/status.js';
 import { logoutWebsite } from '../auth/logout.js';
 import { updateListHeights } from './layout.js';
 import { loadWorkflows } from '../workflows/api.js';
@@ -24,6 +24,10 @@ let lastActiveTab = 'optimizer';
 
 export function createUpdateInterface() {
     const updatePanel = document.createElement("div");
+    initializeLicenseStatus().catch((error) => {
+        console.warn('Nitra: Failed to initialize license status', error);
+    });
+
     updatePanel.className = "nitra-update-interface";
     updatePanel.style.cssText = `
         display: flex;
@@ -273,10 +277,7 @@ export function createUpdateInterface() {
         }
     }
     
-    // Format license status (show loading if not yet fetched)
-    const licenseStatus = state.currentLicenseStatus 
-        ? formatLicenseStatus(state.currentLicenseStatus)
-        : { message: "Loading license status...", style: "color: #666; font-style: italic;", showPurchaseLink: false };
+    const licenseStatus = formatLicenseStatus(state.currentLicenseStatus);
     const licenseStatusBaseStyle = [
         'margin: 12px 0',
         'font-size: 0.9em',
@@ -351,6 +352,21 @@ export function createUpdateInterface() {
                     <div id="nitra-license-status" data-base-style="${licenseStatusBaseStyle}" style="${licenseStatusBaseStyle}; ${licenseStatus.style}">
                     ${licenseStatus.message}
                 </div>
+                <div id="nitra-device-warning" style="
+                    display: none;
+                    color: #f87171;
+                    font-weight: 600;
+                    margin-top: 6px;
+                    font-size: 0.9em;
+                    text-transform: uppercase;
+                    letter-spacing: 0.04em;
+                "></div>
+                <div id="nitra-device-warning-subtext" style="
+                    display: none;
+                    color: #fca5a5;
+                    font-size: 0.85em;
+                    margin-top: 4px;
+                ">Register in User Configuration</div>
                     ${!state.currentLicenseStatus ? '<div id="nitra-license-loading" style="font-size: 0.8em; color: #bdbdbd; margin-top: 4px;">Fetching from server...</div>' : ''}
                 <div id="nitra-purchase-link" style="margin: 8px 0; ${licenseStatus.showPurchaseLink ? 'display: block;' : 'display: none;'}">
                     <a href="${getWebsiteBaseUrl()}/#pricing" target="_blank" style="

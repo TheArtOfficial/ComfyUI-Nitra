@@ -4,6 +4,7 @@
 import * as state from '../core/state.js';
 import { API_ENDPOINTS } from '../core/constants.js';
 import { updateLicenseStatusDisplay } from './ui.js';
+import { fetchRegisteredDevices } from '../device/api.js';
 
 export async function fetchLicenseStatus() {
     if (!state.isAuthenticated || !state.currentUser || !state.currentUser.apiToken) {
@@ -33,13 +34,35 @@ export async function fetchLicenseStatus() {
         }
         
         const subscriptionData = await response.json();
-        state.setCurrentLicenseStatus(subscriptionData);
-        formatLicenseStatus(subscriptionData);
-        updateLicenseStatusDisplay();
+        await applyLicenseStatus(subscriptionData);
         return subscriptionData;
     } catch (error) {
         console.error("Nitra: Error fetching subscription status:", error);
         return null;
+    }
+}
+
+async function applyLicenseStatus(subscriptionData) {
+    state.setCurrentLicenseStatus(subscriptionData);
+    formatLicenseStatus(subscriptionData);
+    const event = new CustomEvent('nitra:license-status-updated', {
+        detail: { subscriptionData }
+    });
+    window.dispatchEvent(event);
+    try {
+        await fetchRegisteredDevices();
+    } catch (error) {
+        console.warn('Nitra: Unable to refresh device registrations', error);
+    }
+    updateLicenseStatusDisplay();
+}
+
+export async function initializeLicenseStatus() {
+    const existing = state.currentLicenseStatus;
+    if (!existing) {
+        await fetchLicenseStatus();
+    } else {
+        await applyLicenseStatus(existing);
     }
 }
 
