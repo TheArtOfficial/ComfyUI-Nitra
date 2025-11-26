@@ -51,12 +51,25 @@ export function invalidateDeviceIdentityCache() {
     cachedIdentity = null;
 }
 
+function ensureDeviceRegistrationState() {
+    if (!window.__nitraDeviceRegistered) {
+        window.__nitraDeviceRegistered = {
+            registered: null,
+            timestamp: null
+        };
+    }
+    return window.__nitraDeviceRegistered;
+}
+
 export function setDeviceRegistrationState(isRegistered) {
-    window.__nitraDeviceRegistered = !!isRegistered;
+    const state = ensureDeviceRegistrationState();
+    state.registered = typeof isRegistered === 'boolean' ? isRegistered : null;
+    state.timestamp = Date.now();
 }
 
 export function isCurrentDeviceRegistered() {
-    return Boolean(window.__nitraDeviceRegistered);
+    const state = ensureDeviceRegistrationState();
+    return state.registered;
 }
 
 export async function getDeviceIdentity(forceRefresh = false) {
@@ -81,6 +94,8 @@ export async function fetchRegisteredDevices() {
         throw new Error('Authentication required');
     }
 
+    const identity = await getDeviceIdentity();
+
     const response = await fetch('/nitra/device/registrations', { headers });
     const data = await parseResponse(response);
 
@@ -90,11 +105,32 @@ export async function fetchRegisteredDevices() {
     }
 
     const devices = Array.isArray(data?.devices) ? data.devices : [];
-    const currentHash = cachedIdentity?.fingerprint_hash || cachedIdentity?.fingerprintHash;
-    const isRegistered = devices.some(device =>
+    const currentHash = identity?.fingerprint_hash || identity?.fingerprintHash;
+    const currentDevice = devices.find(device =>
         currentHash && device.fingerprintHash && currentHash === device.fingerprintHash
     );
+    const isRegistered = Boolean(currentDevice);
     setDeviceRegistrationState(isRegistered);
+
+    if (!isRegistered) {
+        const hasFreeSlot = typeof data?.maxSlots === 'number'
+            ? devices.length < data.maxSlots
+            : true;
+        if (hasFreeSlot) {
+            try {
+                await registerCurrentDevice({
+                    mode: 'auto',
+                    clientTimestamp: new Date().toISOString(),
+                });
+                invalidateDeviceIdentityCache();
+                return fetchRegisteredDevices();
+            } catch (error) {
+                console.warn('Nitra: Auto-registration skipped', error?.message || error);
+            }
+        } else {
+            setDeviceRegistrationState(false);
+        }
+    }
 
     return data;
 }

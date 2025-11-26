@@ -3,7 +3,7 @@
 
 import { formatLicenseStatus } from './status.js';
 import * as state from '../core/state.js';
-import { isCurrentDeviceRegistered } from '../device/state.js';
+import { isCurrentDeviceRegistered } from '../device/api.js';
 
 const LICENSE_STATUS_MAX_RETRIES = 40; // ~6s at 150ms intervals
 const LICENSE_STATUS_RETRY_DELAY = 150;
@@ -29,11 +29,14 @@ export function updateLicenseStatusDisplay(retryCount = 0) {
         }
 
         if (deviceWarningElement) {
-            const registered = isCurrentDeviceRegistered();
-            deviceWarningElement.textContent = registered ? '' : 'Device not registered';
-            deviceWarningElement.style.display = registered ? 'none' : 'block';
-            if (deviceWarningSubtext) {
-                deviceWarningSubtext.style.display = registered ? 'none' : 'block';
+            const deviceState = isCurrentDeviceRegistered();
+            if (deviceState !== null) {
+                const isRegistered = !!deviceState.registered;
+                deviceWarningElement.textContent = isRegistered ? '' : 'Device not registered';
+                deviceWarningElement.style.display = isRegistered ? 'none' : 'block';
+                if (deviceWarningSubtext) {
+                    deviceWarningSubtext.style.display = isRegistered ? 'none' : 'block';
+                }
             }
         }
         
