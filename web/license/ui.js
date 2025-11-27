@@ -29,9 +29,9 @@ export function updateLicenseStatusDisplay(retryCount = 0) {
         }
 
         if (deviceWarningElement) {
-            const deviceState = isCurrentDeviceRegistered();
-            if (deviceState !== null) {
-                const isRegistered = !!deviceState.registered;
+            const registeredState = isCurrentDeviceRegistered();
+            if (registeredState !== null) {
+                const isRegistered = !!registeredState;
                 deviceWarningElement.textContent = isRegistered ? '' : 'Device not registered';
                 deviceWarningElement.style.display = isRegistered ? 'none' : 'block';
                 if (deviceWarningSubtext) {
