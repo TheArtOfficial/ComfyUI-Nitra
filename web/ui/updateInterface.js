@@ -71,6 +71,22 @@ export function createUpdateInterface() {
         }
     }
 
+    window.addEventListener('nitra:device-registered', () => {
+        getDeviceIdentity(true)
+            .then((identity) => {
+                renderDeviceIdentity(identity);
+                return fetchRegisteredDevices();
+            })
+            .then((registrations) => {
+                return getDeviceIdentity().then((identity) => {
+                    renderDeviceList(identity, registrations);
+                });
+            })
+            .catch((error) => {
+                console.warn('Nitra: Failed to refresh device state after registration', error);
+            });
+    });
+
     function renderDeviceList(identity, registrations) {
         const listContainer = updatePanel.querySelector('#nitra-device-list');
         const slotsLabel = updatePanel.querySelector('#nitra-device-slots');

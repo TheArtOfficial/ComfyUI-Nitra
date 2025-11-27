@@ -171,6 +171,16 @@ export async function registerCurrentDevice({
     }
 
     invalidateDeviceIdentityCache();
+    setDeviceRegistrationState(true);
+    const event = new CustomEvent('nitra:device-registered', {
+        detail: {
+            deviceLabel,
+            replaceDeviceId,
+            mode,
+            timestamp: clientTimestamp,
+        },
+    });
+    window.dispatchEvent(event);
     return data;
 }
 
