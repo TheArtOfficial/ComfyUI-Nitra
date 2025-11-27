@@ -56,14 +56,12 @@ export function createUpdateInterface() {
             return;
         }
 
-        const environmentLabel = identity?.runpod?.is_runpod ? 'RunPod' : 'Local';
         container.innerHTML = `
             <div style="display:flex; flex-wrap:wrap; gap:12px; font-size:0.85em; color:#d1d5db;">
                 <span><strong>Machine:</strong> ${escapeHtml(identity.machine_name || 'Unknown')}</span>
                 <span><strong>Host:</strong> ${escapeHtml(identity.hostname || 'Unknown')}</span>
                 <span><strong>Platform:</strong> ${escapeHtml(identity.platform || '-')}&nbsp;${escapeHtml(identity.platform_release || '')}</span>
                 <span><strong>Architecture:</strong> ${escapeHtml(identity.architecture || '-')}</span>
-                <span><strong>Environment:</strong> ${environmentLabel}</span>
             </div>
         `;
 
