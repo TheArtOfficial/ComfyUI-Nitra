@@ -65,6 +65,11 @@ export function setDeviceRegistrationState(isRegistered) {
     const state = ensureDeviceRegistrationState();
     state.registered = typeof isRegistered === 'boolean' ? isRegistered : null;
     state.timestamp = Date.now();
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('nitra:device-registration-state-changed', {
+            detail: { registered: state.registered }
+        }));
+    }
 }
 
 export function isCurrentDeviceRegistered() {

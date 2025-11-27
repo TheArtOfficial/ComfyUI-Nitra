@@ -54,6 +54,15 @@ export function updateLicenseStatusDisplay(retryCount = 0) {
     }
 }
 
+if (typeof window !== 'undefined') {
+    window.addEventListener('nitra:device-registration-state-changed', () => {
+        updateLicenseStatusDisplay();
+    });
+    window.addEventListener('nitra:device-registered', () => {
+        updateLicenseStatusDisplay();
+    });
+}
+
 
 
 
