@@ -3498,20 +3498,6 @@ def _collect_device_identity() -> Dict[str, Any]:
                     break
         add_component('platform_uuid', platform_uuid)
 
-    runpod_env_keys = [
-        'RUNPOD_POD_ID',
-        'RUNPOD_JOB_ID',
-        'RUNPOD_GPU_NAME',
-        'RUNPOD_GPU_COUNT',
-        'RUNPOD_REGION',
-        'RUNPOD_NAME'
-    ]
-    runpod_metadata = {key.lower(): os.environ.get(key) for key in runpod_env_keys if os.environ.get(key)}
-    identity['runpod'] = {
-        'is_runpod': bool(runpod_metadata),
-        'metadata': runpod_metadata
-    }
-
     fingerprint_source = "||".join(fingerprint_components) or identity['machine_name'] or identity['hostname'] or 'unknown-device'
     identity['fingerprint_hash'] = hashlib.sha256(fingerprint_source.encode('utf-8', errors='ignore')).hexdigest()
     identity['fingerprint_components'] = fingerprint_components
