@@ -981,15 +981,25 @@ export function createUpdateInterface() {
         });
 
         if (normalizedTab === 'workflows') {
+            if (typeof renderWorkflows === 'function') {
+                renderWorkflows();
+            }
             if (typeof loadWorkflows === 'function') {
-                loadWorkflows().then(success => {
-                    if (success) renderWorkflows();
+                loadWorkflows({ backgroundRefresh: true }).then(success => {
+                    if (success && typeof renderWorkflows === 'function') {
+                        renderWorkflows();
+                    }
                 });
             }
         } else if (normalizedTab === 'models') {
+            if (typeof renderModels === 'function') {
+                renderModels();
+            }
             if (typeof loadModels === 'function') {
-                loadModels().then(success => {
-                    if (success) renderModels();
+                loadModels({ backgroundRefresh: true }).then(success => {
+                    if (success && typeof renderModels === 'function') {
+                        renderModels();
+                    }
                 });
             }
         } else if (normalizedTab === 'user-config') {

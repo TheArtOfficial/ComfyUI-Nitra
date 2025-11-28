@@ -10,6 +10,8 @@ const subgraphDependenciesCache = new Map(); // subgraphId -> dependencies objec
 let existingModelsCache = null; // array of installed model IDs
 let existingModelsCacheTimestamp = 0;
 const EXISTING_MODELS_CACHE_TTL_MS = 60 * 1000; // 1 minute
+let workflowsFetchPromise = null;
+let workflowsFetchSilent = true;
 
 function shouldRefreshWorkflows(cacheInfo, hasSubscription) {
     if (!cacheInfo) {
@@ -41,6 +43,90 @@ function seedWorkflowCache(workflows) {
             workflowDetailsCache.set(workflow.id, workflow);
         }
     });
+}
+
+function fetchWorkflowsErrorMessage() {
+    return '<div class="nitra-centered-placeholder" style="color:#ff7777;">Failed to load workflows, check that:<br>1. your premium subscription is active.<br>2. your device is registered in "User Configuration".</div>';
+}
+
+async function fetchAndPersistWorkflows(hasSubscription, { silent } = {}) {
+    if (workflowsFetchPromise) {
+        if (!silent) {
+            workflowsFetchSilent = false;
+        }
+        return workflowsFetchPromise;
+    }
+
+    workflowsFetchSilent = silent;
+    workflowsFetchPromise = (async () => {
+        try {
+            let endpoint;
+            let previewMode;
+            if (hasSubscription) {
+                endpoint = '/nitra/workflows';
+                previewMode = false;
+            } else {
+                endpoint = '/nitra/workflows-metadata';
+                previewMode = true;
+            }
+
+            const response = await fetch(endpoint, {
+                headers: {
+                    'Authorization': `Bearer ${state.currentUser.apiToken}`,
+                    'Content-Type': 'application/json',
+                    'X-User-Email': state.currentUser.email,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch workflows: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (previewMode && Array.isArray(data)) {
+                data.forEach((w) => (w._previewMode = true));
+            }
+
+            const cacheInfo =
+                typeof state.getWorkflowsCacheInfo === 'function' ? state.getWorkflowsCacheInfo() : null;
+            const previousVersion = cacheInfo ? cacheInfo.version : null;
+            const newVersion =
+                typeof state.getLatestDataVersion === 'function' ? state.getLatestDataVersion(data) : null;
+            const mode = previewMode ? 'preview' : 'full';
+            const versionChanged =
+                !previousVersion ||
+                !newVersion ||
+                previousVersion !== newVersion ||
+                (cacheInfo && cacheInfo.mode !== mode);
+
+            if (versionChanged) {
+                clearWorkflowCaches();
+                seedWorkflowCache(data);
+                state.setWorkflowsData(data, { mode });
+            } else {
+                state.setWorkflowsData(state.workflowsData, { mode });
+            }
+
+            return true;
+        } catch (error) {
+            if (workflowsFetchSilent) {
+                console.warn('Nitra: Background workflow refresh failed', error);
+            } else {
+                console.error('Error loading workflows:', error);
+                const workflowsList = document.getElementById('nitra-workflows-list');
+                if (workflowsList) {
+                    workflowsList.innerHTML = fetchWorkflowsErrorMessage();
+                }
+            }
+            return false;
+        } finally {
+            workflowsFetchPromise = null;
+            workflowsFetchSilent = true;
+        }
+    })();
+
+    return workflowsFetchPromise;
 }
 
 function extractDynamoValue(value) {
@@ -126,7 +212,8 @@ async function fetchSubgraphDependencies(subgraphId) {
     }
 }
 
-export async function loadWorkflows() {
+export async function loadWorkflows(options = {}) {
+    const { backgroundRefresh = true } = options;
     const cacheInfo = typeof state.getWorkflowsCacheInfo === 'function' ? state.getWorkflowsCacheInfo() : null;
     const hasCached = cacheInfo && Array.isArray(cacheInfo.data) && cacheInfo.data.length > 0;
     const workflowsList = document.getElementById('nitra-workflows-list');
@@ -139,67 +226,20 @@ export async function loadWorkflows() {
         (state.currentLicenseStatus.has_paid_subscription || state.currentLicenseStatus.status === 'paid');
 
     const needsRefresh = shouldRefreshWorkflows(cacheInfo, hasSubscription);
+
+    if (!state.currentUser || !state.currentUser.apiToken) {
+        console.warn('Nitra: Cannot load workflows without an authenticated user');
+        return hasCached;
+    }
+
     if (!needsRefresh) {
+        if (backgroundRefresh) {
+            return fetchAndPersistWorkflows(hasSubscription, { silent: true });
+        }
         return true;
     }
 
-    try {
-        let endpoint;
-        let previewMode;
-        if (hasSubscription) {
-            endpoint = '/nitra/workflows';
-            previewMode = false;
-        } else {
-            endpoint = '/nitra/workflows-metadata';
-            previewMode = true;
-        }
-
-        const response = await fetch(endpoint, {
-            headers: {
-                'Authorization': `Bearer ${state.currentUser.apiToken}`,
-                'Content-Type': 'application/json',
-                'X-User-Email': state.currentUser.email,
-            },
-        });
-
-        if (!response.ok) {
-            throw new Error(`Failed to fetch workflows: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (previewMode && Array.isArray(data)) {
-            data.forEach((w) => (w._previewMode = true));
-        }
-
-        const previousVersion = cacheInfo ? cacheInfo.version : null;
-        const newVersion =
-            typeof state.getLatestDataVersion === 'function' ? state.getLatestDataVersion(data) : null;
-        const mode = previewMode ? 'preview' : 'full';
-        const versionChanged =
-            !previousVersion ||
-            !newVersion ||
-            previousVersion !== newVersion ||
-            (cacheInfo && cacheInfo.mode !== mode);
-
-        if (versionChanged) {
-            clearWorkflowCaches();
-            seedWorkflowCache(data);
-            state.setWorkflowsData(data, { mode });
-        } else {
-            state.setWorkflowsData(state.workflowsData, { mode });
-        }
-
-        return true;
-    } catch (error) {
-        console.error('Error loading workflows:', error);
-        const workflowsList = document.getElementById('nitra-workflows-list');
-        if (workflowsList) {
-            workflowsList.innerHTML =
-                '<div class="nitra-centered-placeholder" style="color:#ff7777;">Failed to load workflows, check that:<br>1. your premium subscription is active.<br>2. your device is registered in "User Configuration".</div>';
-        }
-        return false;
-    }
+    return fetchAndPersistWorkflows(hasSubscription, { silent: false });
 }
 
 export async function getExistingModels() {
