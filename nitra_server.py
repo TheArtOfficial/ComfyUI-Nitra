@@ -170,14 +170,6 @@ def _mask_token_preview(token: Optional[str]) -> str:
     return f"{token[:4]}...{token[-4:]}"
 
 
-def _mask_fingerprint_preview(fingerprint: Optional[str]) -> str:
-    """Return a short preview of fingerprint hashes for debugging."""
-    if not fingerprint:
-        return "<none>"
-    if len(fingerprint) <= 10:
-        return fingerprint
-    return f"{fingerprint[:6]}…{fingerprint[-4:]}"
-
 def handle_stream(stream, prefix):
     """Handle subprocess output streaming to terminal (from ComfyUI-Manager)"""
     import sys
@@ -3300,11 +3292,6 @@ def _verify_device_registration(access_token: str, user_id: Optional[str], user_
     if not stored_fingerprint:
         raise DeviceVerificationError("Machine fingerprint missing. Restart ComfyUI or re-register this device.")
 
-    debug_log(
-        f"Device verify: token={_mask_token_preview(device_token)} "
-        f"stored_fp={_mask_fingerprint_preview(stored_fingerprint)}"
-    )
-
     response = requests.get(
         f'{WEBSITE_BASE_URL}/api/device/slots',
         headers=headers,
@@ -3336,10 +3323,6 @@ def _verify_device_registration(access_token: str, user_id: Optional[str], user_
     )
     for device in devices:
         if device.get('fingerprintHash') == stored_fingerprint:
-            debug_log(
-                f"Device verify success: matched fingerprint "
-                f"{_mask_fingerprint_preview(stored_fingerprint)}"
-            )
             return
 
     raise DeviceVerificationError("This machine is not registered. Register it in the Nitra device settings.")
