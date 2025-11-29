@@ -3,6 +3,7 @@
 
 import * as state from '../core/state.js';
 import { updateWorkflowInstallButton } from './selection.js';
+import { showRestartPrompt } from '../ui/systemPrompts.js';
 
 export async function pollForWorkflowCompletion(button, originalText) {
     // Clear any existing polling
@@ -26,6 +27,8 @@ export async function pollForWorkflowCompletion(button, originalText) {
                     setTimeout(() => {
                         resetWorkflowInstallButton(button, originalText);
                     }, 3000);
+                    state.setPendingRefreshAfterRestart(true);
+                    showRestartPrompt();
                 }
             }
         } catch (error) {

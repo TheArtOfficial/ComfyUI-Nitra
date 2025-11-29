@@ -3,6 +3,7 @@
 
 import * as state from '../core/state.js';
 import { updateModelDownloadButton } from './selection.js';
+import { showRefreshPrompt } from '../ui/systemPrompts.js';
 
 export async function pollForModelCompletion(button, originalText) {
     // Clear any existing polling
@@ -26,6 +27,7 @@ export async function pollForModelCompletion(button, originalText) {
                     setTimeout(() => {
                         resetModelDownloadButton(button, originalText);
                     }, 3000);
+                    showRefreshPrompt();
                 }
             }
         } catch (error) {

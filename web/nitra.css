@@ -38,7 +38,6 @@
 }
 
 .nitra-main-button:hover,
-.nitra-btn:hover:not(:disabled),
 .nitra-btn-primary:hover:not(:disabled) {
     background: var(--nitra-bg-700) !important;
     transform: translateY(-1px) !important;
@@ -613,6 +612,34 @@ textarea.nitra-help-input:focus {
     color: var(--nitra-white);
 }
 
+.nitra-modal {
+    padding: 0;
+    background: var(--nitra-bg-800) !important;
+    border: 1px solid var(--nitra-white-strong) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65);
+    min-width: 320px;
+    width: 100%;
+}
+
+.nitra-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 24px 24px 0 24px;
+}
+
+.nitra-modal-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.nitra-modal-body {
+    padding: 20px 24px 28px 24px;
+}
+
 .nitra-modal-title {
     font-size: 1.6em;
     font-weight: 700;
@@ -634,6 +661,87 @@ textarea.nitra-help-input:focus {
 
 .nitra-modal-close:hover {
     background: rgba(255, 255, 255, 0.1);
+}
+
+.nitra-modal-message {
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--nitra-white);
+    margin-bottom: 16px;
+}
+
+.nitra-modal-subtext {
+    font-size: 0.9rem;
+    color: var(--nitra-muted);
+    line-height: 1.4;
+    margin-top: 8px;
+}
+
+.nitra-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    margin-top: 24px;
+}
+
+.nitra-modal-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.nitra-modal-step {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 12px;
+    border: 1px solid var(--nitra-border);
+    border-radius: 8px;
+    background: var(--nitra-bg-800);
+}
+
+.nitra-modal-step-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid var(--nitra-white-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: var(--nitra-white-strong);
+    flex-shrink: 0;
+}
+
+.nitra-modal-step-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.nitra-modal-step-title {
+    font-weight: 600;
+    color: var(--nitra-white-strong);
+    margin: 0;
+}
+
+.nitra-modal-step-text {
+    color: var(--nitra-muted);
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+
+.nitra-modal .nitra-btn {
+    font-size: 0.95rem !important;
+    padding: 12px 22px !important;
+    min-width: 130px;
+}
+
+.nitra-btn-large {
+    font-size: 1.05rem !important;
+    padding: 14px 26px !important;
 }
 
 .nitra-alert,

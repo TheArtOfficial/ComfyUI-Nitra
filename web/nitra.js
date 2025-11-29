@@ -1,4 +1,5 @@
 import { app } from "/scripts/app.js";
+import { api } from "/scripts/api.js";
 import { API_ENDPOINTS } from './core/constants.js';
 import { fetchConfig, getCallbackUrl, getOAuthConfig, getWebsiteBaseUrl, setWebsiteBaseUrl } from './core/config.js';
 import * as state from './core/state.js';
@@ -21,6 +22,7 @@ import { createLoginForm as createLoginFormFromModule } from './ui/loginForm.js'
 import { createUpdateInterface as createUpdateInterfaceFromModule } from './ui/updateInterface.js';
 import { createSplashDialog as createSplashDialogFromModule, updateDialogForLogin as updateDialogForLoginFromModule, updateDialogForAuthenticated as updateDialogForAuthenticatedFromModule } from './ui/dialog.js';
 import { showNitraSplash as showNitraSplashFromModule } from './ui/splash.js';
+import { showPostRestartRefreshPrompt } from './ui/systemPrompts.js';
 import { getActiveApiToken, getStoredUserEmail, getStoredUserId } from './auth/storage.js';
 
 // All UI functions are now imported from ui/ modules
@@ -294,6 +296,16 @@ function loadNitraCSS() {
 
 // Load CSS immediately
 loadNitraCSS();
+
+function handleApiReconnected() {
+    if (state.pendingRefreshAfterRestart) {
+        showPostRestartRefreshPrompt();
+    }
+}
+
+if (api && typeof api.addEventListener === 'function') {
+    api.addEventListener('reconnected', handleApiReconnected);
+}
 
 // Register the extension with ComfyUI - following SubgraphSearch pattern exactly
 app.registerExtension({

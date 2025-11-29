@@ -124,6 +124,7 @@ export let ongoingModelDownload = false;
 // Polling intervals
 export let workflowPollInterval = null;
 export let modelPollInterval = null;
+export let pendingRefreshAfterRestart = false;
 
 // Setters (to maintain encapsulation for future)
 export function setOpenNitraDialog(value) { openNitraDialog = value; }
@@ -164,6 +165,7 @@ export function setOngoingWorkflowInstall(value) { ongoingWorkflowInstall = valu
 export function setOngoingModelDownload(value) { ongoingModelDownload = value; }
 export function setWorkflowPollInterval(interval) { workflowPollInterval = interval; }
 export function setModelPollInterval(interval) { modelPollInterval = interval; }
+export function setPendingRefreshAfterRestart(value) { pendingRefreshAfterRestart = value; }
 
 export function getWorkflowsCacheInfo() {
     return { ...workflowsCacheInfo };

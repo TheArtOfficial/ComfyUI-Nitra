@@ -8,7 +8,8 @@ export function Modal({
     subtitle,
     children,
     onClose,
-    maxWidth = '600px'
+    maxWidth = '600px',
+    showCloseButton = true
 }) {
     // Create overlay
     const overlay = div({ 
@@ -33,13 +34,15 @@ export function Modal({
                 div({ className: 'nitra-modal-title' }, title),
                 subtitle && div({ className: 'nitra-modal-subtitle' }, subtitle)
             ),
-            onClose && button(
-                { 
-                    className: 'nitra-modal-close',
-                    onClick: onClose
-                },
-                '×'
-            )
+            (onClose && showCloseButton)
+                ? button(
+                    { 
+                        className: 'nitra-modal-close',
+                        onClick: onClose
+                    },
+                    '×'
+                )
+                : null
         ),
         div({ className: 'nitra-modal-body' }, ...children)
     );
