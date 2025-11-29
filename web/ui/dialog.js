@@ -142,6 +142,72 @@ export function createSplashDialog() {
     return { dialog, body };
 }
 
+export function createFallbackSplashDialog() {
+    const dialog = document.createElement("div");
+    dialog.className = "nitra-splash-dialog fallback";
+    dialog.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: auto;
+    `;
+
+    const content = document.createElement("div");
+    content.className = "nitra-modern-card";
+    content.style.cssText = `
+        background: #141414;
+        border: 1px solid rgba(160, 187, 196, 0.35);
+        border-radius: 16px;
+        width: 92vw;
+        height: 90vh;
+        max-width: 1300px;
+        max-height: 90vh;
+        overflow: hidden;
+        box-shadow: 0 18px 36px rgba(0, 0, 0, 0.6);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    `;
+
+    const body = document.createElement("div");
+    body.id = "nitra-dialog-body";
+    body.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        overflow: hidden;
+        align-items: stretch;
+        justify-content: flex-start;
+        min-height: 0;
+        position: relative;
+    `;
+
+    content.appendChild(body);
+    dialog.appendChild(content);
+
+    const closeOverlay = () => {
+        if (dialog.parentElement) {
+            dialog.parentElement.removeChild(dialog);
+            state.setNitraDialog(null);
+        }
+    };
+
+    dialog.onclick = (e) => {
+        if (e.target === dialog) {
+            closeOverlay();
+        }
+    };
+
+    return { dialog, body };
+}
+
 export function updateDialogForLogin() {
     if (!state.nitraDialog) return;
     const body = state.nitraDialog.querySelector("#nitra-dialog-body");

@@ -124,7 +124,5 @@ Restart ComfyUI so the extension initializes.
 ## Support
 
 - Product documentation: [https://hi.nitralabs.ai/help](https://hi.nitralabs.ai/help)
-- Email: [support@nitralabs.ai](mailto:support@nitralabs.ai)
-- Community Discord: Available inside the Nitra sidebar under **Help → Community**
 
 Have feedback or need a feature? Open the Nitra panel, go to **Help → Contact Support**, and include system details so we can assist quickly.
