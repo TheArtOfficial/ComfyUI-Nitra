@@ -5,7 +5,7 @@ import * as state from '../core/state.js';
 import { handleWebsiteCallbackFromUrl } from '../auth/oauth.js';
 import { checkWebsiteSession } from '../auth/session.js';
 import { fetchLicenseStatus } from '../license/status.js';
-import { createSplashDialog, createFallbackSplashDialog, updateDialogForAuthenticated } from './dialog.js';
+import { createSplashDialog, updateDialogForAuthenticated } from './dialog.js';
 import { createLoginForm } from './loginForm.js';
 import { createUpdateInterface } from './updateInterface.js';
 
@@ -44,11 +44,6 @@ export async function showNitraSplash() {
     } catch (error) {
         console.error("Nitra: Error creating dialog:", error);
         clearExistingDialog();
-        try {
-            await buildAndMountDialog(createFallbackSplashDialog, shouldFetchLicense);
-        } catch (fallbackError) {
-            console.error("Nitra: Fallback dialog creation failed:", fallbackError);
-        }
     }
 }
 
