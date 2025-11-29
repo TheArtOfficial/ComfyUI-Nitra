@@ -10,6 +10,7 @@ import { Button } from '../ui/components/Button.js';
 import { div, h3, p, strong } from '../ui/components/core.js';
 import { fetchComfyConfigsByCategory, createCategorySection, createComfyConfigButton, getCategoryButtonStyle, getAlternatingButtonStyle } from './comfy-config-api.js';
 import { showSageAttentionModal } from './package-modals.js';
+import { showRestartPrompt, showRefreshPrompt } from '../ui/systemPrompts.js';
 
 // Cache for package information to avoid repeated API calls
 const packageInfoCache = new Map();
@@ -1922,7 +1923,11 @@ export async function handleOptimizerUpdate(button) {
             const result = await response.json();
             
             if (result.success) {
-                alert('ComfyUI updated successfully! Please restart ComfyUI to apply changes.');
+                state.setPendingRefreshAfterRestart(true);
+                showRestartPrompt({
+                    message: 'Restart ComfyUI to finish applying the update.',
+                    statusMessage: 'Restart ComfyUI when you are ready. We will prompt you to refresh once it is back online.'
+                });
             } else if (result.errors) {
                 alert(`Update completed with errors:\n${result.errors.join('\n')}\n\nPlease check the logs for details.`);
             } else {
@@ -1951,7 +1956,11 @@ export async function handleOptimizerUpdateNitra(button) {
             const result = await response.json();
             
             if (result.success) {
-                alert('Nitra updated successfully! Please restart ComfyUI and refresh the page to see changes.');
+                state.setPendingRefreshAfterRestart(true);
+                showRestartPrompt({
+                    message: 'Restart ComfyUI to finish applying the Nitra update.',
+                    statusMessage: 'Restart ComfyUI when you are ready. We will prompt you to refresh once it reconnects.'
+                });
             } else {
                 alert(`Update failed: ${result.error || 'Unknown error'}`);
             }

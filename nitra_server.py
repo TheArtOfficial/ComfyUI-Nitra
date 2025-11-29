@@ -35,6 +35,23 @@ from aiohttp import web
 
 # Use both logging and print for debugging
 logger = logging.getLogger(__name__)
+LOG_DIR = os.path.join(os.path.dirname(__file__), 'web', 'logs')
+PIP_LOG_PATH = os.path.join(LOG_DIR, 'setup.log')
+
+def _log_pip_output(label: str, content: Optional[str]) -> None:
+    if not content:
+        return
+    logger.info("%s\n%s", label, content.strip())
+    try:
+        os.makedirs(LOG_DIR, exist_ok=True)
+        with open(PIP_LOG_PATH, 'a', encoding='utf-8') as log_file:
+            timestamp = datetime.now(timezone.utc).isoformat()
+            log_file.write(f"\n[{timestamp}] {label}\n")
+            log_file.write(content)
+            if not content.endswith('\n'):
+                log_file.write('\n')
+    except Exception as log_error:
+        logger.warning("Nitra: Failed to write pip logs: %s", log_error)
 
 # Configuration - Automatically detect from git branch
 def get_git_branch() -> str:
@@ -2509,40 +2526,43 @@ async def update_comfyui(request):
                 "error": f"Git pull error: {str(e)}"
             }, status=500)
         
-        # Step 2: Update Python packages
-        packages = [
-            'comfyui-frontend-package==1.28.8',
-            'comfyui-workflow-templates==0.2.4',
-            'comfyui-embedded-docs==0.3.0'
-        ]
-        
-        errors = []
-        for package in packages:
+        # Step 2: Install Python requirements
+        requirements_path = os.path.join(comfyui_dir, 'requirements.txt')
+        if not os.path.exists(requirements_path):
+            logger.warning("Nitra: requirements.txt not found, skipping package install")
+        else:
             try:
-                debug_log(f"Updating {package}...")
+                debug_log("Installing requirements from requirements.txt...")
                 result = subprocess.run(
-                    [sys.executable, '-m', 'pip', 'install', '-U', '--no-warn-script-location', package],
+                    [sys.executable, '-m', 'pip', 'install', '-r', requirements_path],
                     capture_output=True,
                     text=True,
-                    timeout=300
+                    timeout=600
                 )
+                _log_pip_output("pip install -r requirements.txt stdout", result.stdout)
+                _log_pip_output("pip install -r requirements.txt stderr", result.stderr)
                 if result.returncode != 0:
-                    error_msg = f"Failed to update {package}: {result.stderr}"
-                    logger.error(error_msg)
-                    errors.append(error_msg)
-                else:
-                    debug_log(f"Successfully updated {package}")
+                    error_msg = result.stderr or "Unknown pip error"
+                    logger.error(f"Failed to install requirements: {error_msg}")
+                    return web.json_response({
+                        "success": False,
+                        "message": "requirements.txt installation failed",
+                        "errors": [error_msg]
+                    }, status=500)
             except subprocess.TimeoutExpired:
-                errors.append(f"Timeout updating {package}")
+                logger.error("requirements.txt installation timed out after 600 seconds")
+                _log_pip_output("pip install -r requirements.txt", "Command timed out after 600 seconds")
+                return web.json_response({
+                    "success": False,
+                    "message": "requirements.txt installation timed out"
+                }, status=500)
             except Exception as e:
-                errors.append(f"Error updating {package}: {str(e)}")
-        
-        if errors:
-            return web.json_response({
-                "success": False,
-                "message": "Update completed with some errors",
-                "errors": errors
-            }, status=207)  # 207 Multi-Status
+                logger.error(f"Error installing requirements: {e}")
+                _log_pip_output("pip install -r requirements.txt error", str(e))
+                return web.json_response({
+                    "success": False,
+                    "message": f"Error installing requirements: {str(e)}"
+                }, status=500)
         
         return web.json_response({
             "success": True,

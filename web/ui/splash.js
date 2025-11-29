@@ -9,6 +9,8 @@ import { createSplashDialog, updateDialogForAuthenticated } from './dialog.js';
 import { createLoginForm } from './loginForm.js';
 import { createUpdateInterface } from './updateInterface.js';
 
+let currentDialogBuild = null;
+
 export async function showNitraSplash() {
     // Check for token callback from your website
     let shouldFetchLicense = false;
@@ -37,22 +39,38 @@ export async function showNitraSplash() {
         shouldFetchLicense = true;
     }
     
+    if (currentDialogBuild) {
+        try {
+            await currentDialogBuild;
+        } catch (error) {
+            console.warn("Nitra: Previous dialog build failed", error);
+        }
+    }
+    
     clearExistingDialog();
     
+    const buildPromise = buildAndMountDialog(createSplashDialog, shouldFetchLicense);
+    currentDialogBuild = buildPromise;
+    
     try {
-        await buildAndMountDialog(createSplashDialog, shouldFetchLicense);
+        await buildPromise;
     } catch (error) {
         console.error("Nitra: Error creating dialog:", error);
         clearExistingDialog();
+        throw error;
+    } finally {
+        if (currentDialogBuild === buildPromise) {
+            currentDialogBuild = null;
+        }
     }
 }
 
 async function buildAndMountDialog(dialogFactory, shouldFetchLicense) {
     const { dialog, body } = dialogFactory();
-    state.setNitraDialog(dialog);
     await populateDialogBody(body, shouldFetchLicense);
     const targetParent = document.body;
     targetParent.appendChild(dialog);
+    state.setNitraDialog(dialog);
 }
 
 async function populateDialogBody(body, shouldFetchLicense) {
@@ -134,8 +152,15 @@ async function populateDialogBody(body, shouldFetchLicense) {
 }
 
 function clearExistingDialog() {
-    if (state.nitraDialog && state.nitraDialog.parentElement) {
-        state.nitraDialog.parentElement.removeChild(state.nitraDialog);
+    const existingDialogs = document.querySelectorAll('.nitra-splash-dialog');
+    if (existingDialogs.length) {
+        existingDialogs.forEach(dialog => {
+            if (dialog.parentElement) {
+                dialog.parentElement.removeChild(dialog);
+            } else {
+                dialog.remove();
+            }
+        });
     }
     state.setNitraDialog(null);
 }
