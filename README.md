@@ -2,127 +2,174 @@
 
 > **Usage License:** Nitra Labs grants you a limited license to run the Nitra plugin inside ComfyUI for its intended functionality in commercial or non-commercial workflows. Any other commercial use—including copying, modifying, sublicensing, or redistributing this code or derivative works—requires prior written consent from Nitra Labs.
 
-Nitra is the premium automation and optimization suite for ComfyUI. It bundles curated workflow libraries, a powerful environment optimizer, CUDA and build-tool installers, and a polished account experience directly inside the ComfyUI sidebar.
+Nitra makes ComfyUI effortless — built for film and VFX artists who demand privacy, polish, and more time to create. A plugin right in ComfyUI, which makes professional level workflows a click away.
+
+## About Nitra Labs
+
+Nitra Labs is an agency that excels at implementing, scaling, and finetuning AI pipelines in the film and VFX industries. We focus on security and data because your content is your backbone, and uploading your content to any cloud AI services risks your content becoming training material in the future.
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Requirements](#requirements)
-- [Installation](#installation)
-  - [Quick Install](#quick-install)
+- [Installing Nitra](#installing-nitra)
+  - [Install Scripts](#install-scripts)
+  - [Comfy Manager](#comfy-manager)
   - [Manual Install](#manual-install)
-- [Getting Started](#getting-started)
-- [Feature Highlights](#feature-highlights)
+  - [RunPod Template](#runpod-template)
+- [Create an Account](#create-an-account)
+  - [Free Features](#free-features)
+  - [Paid Features](#paid-features)
+  - [How to create an account](#how-to-create-an-account)
+  - [How to subscribe](#how-to-subscribe)
+- [Using Nitra](#using-nitra)
   - [ComfyUI Optimizer](#comfyui-optimizer)
-  - [Workflow Library](#workflow-library)
-  - [Model Downloads](#model-downloads)
-  - [User Configuration](#user-configuration)
-  - [Help & Community](#help--community)
-- [Troubleshooting](#troubleshooting)
-- [Support](#support)
+  - [Workflow Installer](#workflow-installer)
+    - [Subgraphs](#subgraphs)
+  - [Model Installer](#model-installer)
+  - [Install Missing (Coming Soon)](#install-missing-coming-soon)
+- [User Configuration](#user-configuration)
+- [How Can We Help?](#how-can-we-help)
+- [Logout](#logout)
 
-## Overview
+## Installing Nitra
 
-Once installed, the Nitra panel appears in ComfyUI with an Auth0-powered sign-in. After logging in, you unlock:
+Nitra Labs offers a variety of ways to install the Nitra Plug-in into ComfyUI for optimal convenience.
 
-- Guided environment upgrades with live hardware checks.
-- A browsable gallery of cinematic workflows with video previews.
-- A sortable model catalog wired into ComfyUI’s folder structure.
-- Device registration, extra model path management, and contact tools—all in one place.
+### Install Scripts
 
-## Requirements
+Download the applicable script for your system, which can be found [at this link](https://github.com/TheArtOfficial/ComfyUI-Nitra/releases/tag/Installers).
 
-- A working ComfyUI install on Windows, Linux, or macOS.
-- Python 3.10+ (matching your ComfyUI environment).
-- Internet access for login, downloads, and upgrade scripts.
-- Windows users: PowerShell 5.1+ and `winget` for automated installers.
-- Linux/macOS users: sudo privileges for CUDA or driver updates.
+#### Windows Install
+Place the .bat file in the folder location on windows that you want to install ComfyUI with the Nitra Plug-in. Double click on the .bat file, and it will start to install ComfyUI with Nitra.
+![alt text](docs/images/batFileInstall.png)
 
-## Installation
+Inside the ComfyUI Folder, you will find a file called "run_comfy.bat". Double click this file to launch ComfyUI. Wait until the terminal stops producing text and then go to the next step
+![alt text](docs/images/batRunComfy.png)
 
-### Quick Install
+Navigate to [localhost:8188](localhost:8188) or [127.0.0.1:8188](127.0.0.1:8188) in your web browser of choice (Firefox or Google Chrome recommended).
 
-```bash
-cd /path/to/ComfyUI/custom_nodes
-git clone https://github.com/TheArtOfficial/ComfyUI-Nitra.git
-```
+#### Linux Install
+Place the .bat file in the folder location on windows that you want to install ComfyUI with the Nitra Plug-in. Open a shell and run:
 
-On Windows PowerShell:
+```./linux_install_nitra_comfy.sh```
 
-```powershell
-cd C:\path\to\ComfyUI\custom_nodes
-git clone https://github.com/TheArtOfficial/ComfyUI-Nitra.git
-```
+This will clone ComfyUI into your current folder. Inside the ComfyUI Folder, you will find a file called "run_comfy.sh". Double click this file or open a shell and run it to launch ComfyUI. Wait until the terminal stops producing text and then go to the next step
 
-Restart ComfyUI so the extension initializes.
+Navigate to [localhost:8188](localhost:8188) or [127.0.0.1:8188](127.0.0.1:8188) in your web browser of choice (Firefox or Google Chrome recommended).
+
+### Comfy Manager
+
+
 
 ### Manual Install
 
-1. Download the latest ComfyUI-Nitra release archive.
-2. Extract it into `ComfyUI/custom_nodes/ComfyUI-Nitra`.
-3. Install Python dependencies inside your ComfyUI environment:
+Navigate to the ComfyUI/custom_nodes folder, and run the following commands:
 
-   ```bash
-   cd ComfyUI/custom_nodes/ComfyUI-Nitra
-   pip install -r requirements.txt
-   ```
+```
+git clone https://github.com/TheArtOfficial/ComfyUI-Nitra.git
+cd ComfyUI-Nitra
+pip install -r requirements.txt
+```
+Make sure you restart ComfyUI and refresh the browser to see ComfyUI Nitra in your ComfyUI environment
 
-4. Relaunch ComfyUI.
+### RunPod Template
 
-## Getting Started
+Use our referral code to sign up for RunPod if you don't already have an account! [https://runpod.io?ref=rqu7tin8](https://runpod.io?ref=rqu7tin8)
 
-1. Open ComfyUI and click the Nitra icon in the sidebar.
-2. Choose **Sign in with Nitra**, complete the Auth0 flow, and return to ComfyUI.
-3. Use the left-hand navigation to switch between the Optimizer, Workflows, Models, User Configuration, and Help tabs.
-4. Logout returns you to the “Welcome to Nitra” screen without launching an external browser window.
+Nitra Labs provides a RunPod template to quickly deploy ComfyUI from anywhere, even if you don't own a GPU yourself. You can find it [at this link](https://console.runpod.io/deploy?template=ntf53vsuqj&ref=rqu7tin8)
 
-## Feature Highlights
+When you click on the link and have a valid account created, you'll be prompted to start a pod.
+![RunPod select pod](docs/images/RunPodPods.png)
+
+Nitra Labs recommends setting up Network storage of 500gb minimum, preferably up to 1TB or more to handle the large size of the models. This will allow you to keep all your work and you won't have to restart all over again each time you start a new pod.
+
+Select your network storage, and CUDA Versions as shown below. CUDA 12.8 or 12.9 are required becasue of blackwell architecture support for RTX 50xx series.
+![Pod Storage and Cuda Settings](docs/images/PodStorageCuda.png)
+
+Then select a GPU from the list below. For most production work, Nitra Labs recommends an RTX 5090 at minimum. RTX 5090 is an excellent balance of speed and value.
+
+Once you've selected your GPU, and confirm that the ComfyUI-Nitra template is selected, click "Deploy On-Demand"
+![Confirm Template and click deploy](docs/images/ConfirmTemplate.png)
+
+If this is your first time launching ComfyUI on your network storage or if you do not plan to use a network storage, expect about 20mins of first time setup.
+
+Go to the logs of your RunPod pod, and wait until you see the circled message in the container logs. That tells you that ComfyUI is ready.
+![Look for comfyui browser address in logs](docs/images/podStartup.png)
+
+Click "Connect", and then click "ComfyUI" to open ComfyUI. A JupyterLab session is also provided, where you can view the pod's filesystem.
+![alt text](docs/images/podComfyUIStart.png)
+
+### Docker
+The docker command to run the ComfyUI-Nitra container is:
+```
+docker run -d \
+  --name comfy-nitra \
+  --gpus all \
+  -p 8188:8188 \
+  -p 8888:8888 \
+  -v /path/to/workspace:/workspace \
+  theartofficial/comfyui-nitra:latest
+```
+
+## Create an Account
+
+### Free Features
+  - PyTorch Version Switcher
+  - Sage Attention Installer
+  - Windows Triton Installer
+  - Slow Depth & Pose Map Fix
+  - Cuda Toolkit Installer
+  - Windows Build Tools Installer
+  - Launch Shell with Build Tools Activated
+
+### Paid Features
+ - Auto-Install 100+ top-quality curated and subgraphed workflows
+ - 400+ workflows in the roadmap
+ - Subgraphs published straight into your library to use as nodes
+ - Model Auto-Installer
+ - (coming soon) Install All Missing Models & Custom Nodes for a workflow
+
+### How to create an account
+
+Once you have Nitra installed into ComfyUI, click on the nitra button at the top of ComfyUI.
+![alt text](docs/images/NitraButton.png)
+
+Click the "Continue with Login" button on the dialog that pops up. All authentication is handled by Auth0 for optimal user security. The only personal data that Nitra Labs stores are name and email address for account handling.
+![alt text](docs/images/NitraLogin.png)
+
+Authenticate the Auth0 form with either email/password, github, or google.
+![alt text](docs/images/nitraLoginForm.png)
+
+Once you've completed log-in, you should be re-directed back to ComfyUI, where you will see the Nitra Dashboard appear.
+![alt text](docs/images/NitraDashboard.png)
+
+### How to subscribe
+
+To purchase a license to access over 100 premium workflows and subgraphs, click the "Purchase License" button on the left side.
+![alt text](docs/images/PurchaseLicense.png)
+
+That will bring you to our Nitra Account Dashboard, where you can Upgrade your account to the paid version.
+![alt text](docs/images/UpgradeNitraPremium.png)
+
+All purchases are handled securely through Stripe. Nitra does not store any of your financial information, all financial transactions run through Stripe.
+![alt text](docs/images/SubscribeButton.png)
+
+After subscribing, head back to ComfyUI, refresh your browser, and you should see your account upgraded to "Premium Subscription" on the left side:
+![alt text](docs/images/PremiumSubscription.png)
+
+## Using Nitra
 
 ### ComfyUI Optimizer
 
-- **Live environment snapshot**: See your current platform, Python version, Torch build, CUDA runtime, and detected GPUs before running any upgrade.
-- **One-click installers**: Launch modals for PyTorch, SageAttention, ONNX, Triton (Windows), and more via dedicated buttons.
-- **Smart upgrade guidance**: PyTorch modal highlights whether the selected build already matches your system, and warns when SageAttention needs reinstalling.
-- **Advanced Tools grid** (bottom of the Optimizer tab):
-  - **CUDA Toolkit Manager**: Pick “latest,” “match PyTorch,” or enter a custom version. Works on Windows (via `winget`) and Linux, with nvcc path reminders after upgrades.
-  - **Install Microsoft Build Tools**: Installs or reinstalls Visual Studio 2022 Build Tools with the Desktop C++ workload. Status badge turns green when detected.
-  - **Open Build Tools Shell**: Launches the Visual Studio Developer PowerShell with the correct architecture (x64, x86, ARM) in a new console window.
+### Workflow Installer
 
-### Workflow Library
+#### Subgraphs
 
-- **Cinematic previews**: Each workflow card supports autoplaying video or image previews while you hover.
-- **Search & category filters**: Narrow results by tags, categories, or free-text search, then select specific recipes to deploy.
-- **Multi-select actions**: Select all, deselect all, or mix-and-match before clicking “Install Selected Workflows.”
-- **Subscription cues**: Locked items display “Subscribe to download,” while active accounts can install directly from the card grid.
+### Model Installer
 
-### Model Downloads
-
-- **Resizable table layout**: Column widths can be dragged to fit long model names or descriptions.
-- **Folder-aware filtering**: Filter by install folder (checkpoints, LORAs, etc.) to keep downloads organized.
-- **Bulk queueing**: Select multiple models, optionally enter a HuggingFace token for private mirrors, and download in one click.
-- **Preview gating**: Locked models show a friendly prompt to upgrade before download.
+### Install Missing (Coming Soon)
 
 ### User Configuration
 
-- **Extra model paths**: Append additional directories that ComfyUI should scan (writes to `extra_model_paths.yaml`).
-- **HuggingFace token storage**: Securely keep a token inside Nitra to speed up HF-hosted downloads.
-- **Device Manager**: View machine slots, rename devices, refresh status, and register/replace the current machine with a single button.
+### How Can We Help?
 
-### Help & Community
-
-- **License status**: Sidebar badge highlights trial, active, or expired states—plus a “Purchase License” link to Nitra’s pricing page.
-- **Contact form**: Send business inquiries directly from the Help tab, including name, email, phone, and company details.
-- **Quick links**: Jump to GitHub issues or Nitra support resources without leaving ComfyUI.
-
-## Troubleshooting
-
-- **Optimizer buttons disabled**: Confirm you’re on a supported OS (Windows or Linux for CUDA/Build Tools) and that the status banner isn’t reporting an error.
-- **CUDA path not updating**: After installing a toolkit, reopen the shell you use to launch ComfyUI so `nvcc` is rediscovered.
-- **Models/workflows locked**: Verify your subscription status in the sidebar badge; it will prompt you to purchase if access is limited.
-- **Device registration stalled**: Use the Refresh button inside User Configuration → Registered Machines, then try “Register / Replace Device” again.
-
-## Support
-
-- Product documentation: [https://hi.nitralabs.ai/help](https://hi.nitralabs.ai/help)
-
-Have feedback or need a feature? Open the Nitra panel, go to **Help → Contact Support**, and include system details so we can assist quickly.
+### Logout
