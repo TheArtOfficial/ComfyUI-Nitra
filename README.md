@@ -2,7 +2,7 @@
 
 > **Usage License:** Nitra Labs grants you a limited license to run the Nitra plugin inside ComfyUI for its intended functionality in commercial or non-commercial workflows. Any other commercial use—including copying, modifying, sublicensing, or redistributing this code or derivative works—requires prior written consent from Nitra Labs.
 
-Nitra makes ComfyUI effortless — built for film and VFX artists who demand privacy, polish, and more time to create. A plugin right in ComfyUI, which makes professional level workflows a click away.
+Nitra makes ComfyUI effortless — built for film and VFX artists who demand privacy, polish, and more time to create. A plugin right in ComfyUI, which makes the newest professional level workflows a click away.
 
 ## About Nitra Labs
 
@@ -42,7 +42,7 @@ Download the applicable script for your system, which can be found [at this link
 Place the .bat file in the folder location on windows that you want to install ComfyUI with the Nitra Plug-in. Double click on the .bat file, and it will start to install ComfyUI with Nitra.
 ![alt text](docs/images/batFileInstall.png)
 
-Inside the ComfyUI Folder, you will find a file called "run_comfy.bat". Double click this file to launch ComfyUI. Wait until the terminal stops producing text and then go to the next step
+Inside the ComfyUI Folder, you will find a file called "run_comfy.bat". Double click this file to launch ComfyUI. Wait until the terminal stops producing text and then go to the next step.
 ![alt text](docs/images/batRunComfy.png)
 
 Navigate to [localhost:8188](localhost:8188) or [127.0.0.1:8188](127.0.0.1:8188) in your web browser of choice (Firefox or Google Chrome recommended).
@@ -128,7 +128,7 @@ docker run -d \
  - Model Auto-Installer
  - (coming soon) Install All Missing Models & Custom Nodes for a workflow
 
-### How to create an account
+### How to create a free account
 
 Once you have Nitra installed into ComfyUI, click on the nitra button at the top of ComfyUI.
 ![alt text](docs/images/NitraButton.png)
@@ -142,7 +142,7 @@ Authenticate the Auth0 form with either email/password, github, or google.
 Once you've completed log-in, you should be re-directed back to ComfyUI, where you will see the Nitra Dashboard appear.
 ![alt text](docs/images/NitraDashboard.png)
 
-### How to subscribe
+### How to subscribe to Nitra Premium
 
 To purchase a license to access over 100 premium workflows and subgraphs, click the "Purchase License" button on the left side.
 ![alt text](docs/images/PurchaseLicense.png)
@@ -153,7 +153,7 @@ That will bring you to our Nitra Account Dashboard, where you can Upgrade your a
 All purchases are handled securely through Stripe. Nitra does not store any of your financial information, all financial transactions run through Stripe.
 ![alt text](docs/images/SubscribeButton.png)
 
-After subscribing, head back to ComfyUI, refresh your browser, and you should see your account upgraded to "Premium Subscription" on the left side:
+After subscribing, head back to ComfyUI, refresh your browser, and you should see your account upgraded to "Premium Subscription" on the left side.
 ![alt text](docs/images/PremiumSubscription.png)
 
 ## Using Nitra
