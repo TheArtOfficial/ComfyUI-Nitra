@@ -145,6 +145,7 @@ Once you've completed log-in, you should be re-directed back to ComfyUI, where y
 ### How to subscribe to Nitra Premium
 
 To purchase a license to access over 100 premium workflows and subgraphs, click the "Purchase License" button on the left side.
+
 ![alt text](docs/images/PurchaseLicense.png)
 
 That will bring you to our Nitra Account Dashboard, where you can Upgrade your account to the paid version.
@@ -154,6 +155,7 @@ All purchases are handled securely through Stripe. Nitra does not store any of y
 ![alt text](docs/images/SubscribeButton.png)
 
 After subscribing, head back to ComfyUI, refresh your browser, and you should see your account upgraded to "Premium Subscription" on the left side.
+
 ![alt text](docs/images/PremiumSubscription.png)
 
 ## Using Nitra
