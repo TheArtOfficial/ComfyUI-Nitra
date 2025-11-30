@@ -125,6 +125,7 @@ export let ongoingModelDownload = false;
 export let workflowPollInterval = null;
 export let modelPollInterval = null;
 export let pendingRefreshAfterRestart = false;
+const pendingRefreshListeners = new Set();
 
 // Setters (to maintain encapsulation for future)
 export function setOpenNitraDialog(value) { openNitraDialog = value; }
@@ -165,7 +166,24 @@ export function setOngoingWorkflowInstall(value) { ongoingWorkflowInstall = valu
 export function setOngoingModelDownload(value) { ongoingModelDownload = value; }
 export function setWorkflowPollInterval(interval) { workflowPollInterval = interval; }
 export function setModelPollInterval(interval) { modelPollInterval = interval; }
-export function setPendingRefreshAfterRestart(value) { pendingRefreshAfterRestart = value; }
+export function setPendingRefreshAfterRestart(value) {
+    pendingRefreshAfterRestart = value;
+    pendingRefreshListeners.forEach(listener => {
+        try {
+            listener(value);
+        } catch (error) {
+            console.error('Nitra: pending refresh listener error', error);
+        }
+    });
+}
+
+export function onPendingRefreshChange(listener) {
+    if (typeof listener !== 'function') {
+        return () => {};
+    }
+    pendingRefreshListeners.add(listener);
+    return () => pendingRefreshListeners.delete(listener);
+}
 
 export function getWorkflowsCacheInfo() {
     return { ...workflowsCacheInfo };

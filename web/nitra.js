@@ -307,6 +307,68 @@ if (api && typeof api.addEventListener === 'function') {
     api.addEventListener('reconnected', handleApiReconnected);
 }
 
+let fallbackReconnectInterval = null;
+let fallbackReconnectStart = 0;
+let fallbackReconnectSawFailure = false;
+
+function stopFallbackReconnectWatcher() {
+    if (fallbackReconnectInterval) {
+        clearInterval(fallbackReconnectInterval);
+        fallbackReconnectInterval = null;
+    }
+}
+
+async function attemptServerReadyCheck() {
+    if (!state.pendingRefreshAfterRestart) {
+        stopFallbackReconnectWatcher();
+        return;
+    }
+
+    try {
+        const response = await fetch(`/nitra/queue/status?ts=${Date.now()}`, {
+            cache: 'no-store',
+            headers: { 'Accept': 'application/json' }
+        });
+
+        if (response.ok) {
+            const elapsed = Date.now() - fallbackReconnectStart;
+            if (fallbackReconnectSawFailure || elapsed > 7000) {
+                showPostRestartRefreshPrompt();
+                stopFallbackReconnectWatcher();
+            }
+        } else {
+            fallbackReconnectSawFailure = true;
+        }
+    } catch (error) {
+        fallbackReconnectSawFailure = true;
+    }
+}
+
+function startFallbackReconnectWatcher() {
+    if (fallbackReconnectInterval) {
+        return;
+    }
+    fallbackReconnectStart = Date.now();
+    fallbackReconnectSawFailure = false;
+    // run first check after short delay to give server time to go down
+    setTimeout(attemptServerReadyCheck, 2500);
+    fallbackReconnectInterval = setInterval(attemptServerReadyCheck, 4000);
+}
+
+if (typeof state.onPendingRefreshChange === 'function') {
+    state.onPendingRefreshChange((value) => {
+        if (value) {
+            startFallbackReconnectWatcher();
+        } else {
+            stopFallbackReconnectWatcher();
+        }
+    });
+}
+
+if (state.pendingRefreshAfterRestart) {
+    startFallbackReconnectWatcher();
+}
+
 // Register the extension with ComfyUI - following SubgraphSearch pattern exactly
 app.registerExtension({
     name: "Comfy.AOLabs",
