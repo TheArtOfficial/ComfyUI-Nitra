@@ -371,11 +371,6 @@ export function renderWorkflows() {
                         <div style="font-size: 0.9em; color: #f9fafb; opacity: 0.92; line-height: 1.6; text-shadow:0 1px 3px rgba(0,0,0,0.9);">
                     ${workflow.description || 'No description available'}
                 </div>
-                ${workflow.tags && workflow.tags.length > 0 ? `
-                            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">
-                                ${workflow.tags.map(tag => `<span style="background: rgba(0,0,0,0.65); color: #f9fafb; padding: 2px 10px; border-radius: 999px; font-size: 0.75em; letter-spacing:0.08em; text-transform:uppercase; border:1px solid rgba(249,250,251,0.25);">${tag}</span>`).join('')}
-                            </div>
-                        ` : ''}
                         ${isPreview ? `<div style="font-size: 0.8em; color: #fbbf24; font-weight: 600; margin-top:6px; text-shadow:0 1px 3px rgba(0,0,0,0.9);">Subscribe to download</div>` : ''}
                     </div>
             </div>

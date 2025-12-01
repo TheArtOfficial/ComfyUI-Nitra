@@ -125,10 +125,6 @@ export function renderModels() {
             const installFolder = model.installFolder || '—';
             const description = model.notes || model.description || 'No description available';
             
-            const tags = Array.isArray(model.tags) && model.tags.length > 0
-                ? `<div class="nitra-model-tags">${model.tags.map(tag => `<span class="nitra-model-tag">${tag}</span>`).join('')}</div>`
-                : '';
-            
             const previewNote = isPreview
                 ? '<div class="nitra-model-preview-note">Subscribe to download</div>'
                 : '';
@@ -140,7 +136,6 @@ export function renderModels() {
                     </td>
                     <td class="nitra-model-cell nitra-model-name-cell" ${columnStyleAttr(1)} title="${escapeAttr(model.modelName || model.name || 'Unnamed Model')}">
                         <div class="nitra-model-name">${model.modelName || model.name || 'Unnamed Model'}${lockIcon}</div>
-                        ${tags}
                         ${previewNote}
                     </td>
                     <td class="nitra-model-cell nitra-model-size-cell" ${columnStyleAttr(2)} title="${escapeAttr(modelSize)}">${modelSize}</td>

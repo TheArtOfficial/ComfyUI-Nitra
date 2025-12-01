@@ -6,7 +6,7 @@
 
 ## About Nitra Labs
 
-Nitra Labs is an agency that excels at implementing, scaling, and finetuning AI pipelines in the film and VFX industries. We focus on security and data because your content is your backbone, and uploading your content to any cloud AI services risks your content becoming training material in the future.
+Nitra Labs is an agency that excels at implementing, scaling, and finetuning AI pipelines in the film and VFX industries. We focus on security and data because your content is your backbone, and uploading your content to any cloud AI service risks your content becoming training material in the future.
 
 ## Table of Contents
 
