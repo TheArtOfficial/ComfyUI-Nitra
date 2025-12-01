@@ -35,15 +35,16 @@ Nitra Labs is an agency that excels at implementing, scaling, and finetuning AI 
 
 The Nitra Plug-in for ComfyUI gives you instant access to premium workflows specifically designed for production pipelines. The Nitra difference is when you download a workflow, you get everything needed to run the workflow. No more searching for obscure custom nodes or models. On top of that, the workflows are condensed into easy-to-use subgraphs that can be searched just like any node. Let's walk through an example.
 
-Let's install Z-Image Turbo
+Let's install Z-Image-Turbo
 ![alt text](docs/images/z-image-turbo-download.png)
 
-After clicking Install, all workflows, subgraphs, custom nodes, and models for running z-image-turbo will install.
+After clicking Install, all workflows, subgraphs, custom nodes, and models for running Z-Image-Turbo will install.
 ![alt text](docs/images/z-image-download-summary.png)
 
-Now let's restart ComfyUI, and check out what was auto installed for us!
+Now let's restart ComfyUI, and check out what was installed for us!
 
-This is the workflow already setup with documentation for what all of the inputs and outputs of the subgraph do. The models were already installed, so just click "Run" and as long as you have the VRAM to run the workflow, it will run immediately.
+This is the workflow that was downloaded. It contains a Z-Image-Turbo subgraph with documentation for what all of the inputs and outputs of the subgraph do. The models were already installed, so just click "Run" and as long as you have the VRAM to run the workflow, it will run immediately.
+
 ![alt text](docs/images/z-image-turbo-workflow-image.png)
 
 Here is the searchable subgraph. Search for it as you would any other node, and connect it into your favorite image-to-video workflow or anywhere else you'd like.
