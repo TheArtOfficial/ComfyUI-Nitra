@@ -160,11 +160,16 @@ def _install_subgraph(subgraph_data: Dict, config: ComfyUIConfig) -> bool:
         subgraphs_dir = os.path.join(config.app_dir, 'user', 'default', 'subgraphs')
         os.makedirs(subgraphs_dir, exist_ok=True)
         
-        # Download subgraph file
-        subgraph_filename = f"{subgraph_name.replace(' ', '_')}.json"
+        # Use subgraph name for filename as requested, ensuring .json extension
+        clean_name = subgraph_name.replace(' ', '_')
+        if not clean_name.lower().endswith('.json'):
+            subgraph_filename = f"{clean_name}.json"
+        else:
+            subgraph_filename = clean_name
+            
         subgraph_path = os.path.join(subgraphs_dir, subgraph_filename)
         
-        logger.info(f"Downloading subgraph: {subgraph_name}")
+        logger.info(f"Downloading subgraph: {subgraph_name} -> {subgraph_filename}")
         if _download_file(subgraph_file_url, subgraph_path, config):
             logger.info(f"[OK] Subgraph installed: {subgraph_filename}")
             return True

@@ -312,7 +312,7 @@ export function renderWorkflows() {
             : false;
 
         return nameMatch || descriptionMatch || tagMatch;
-    });
+    }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
     const filteredWorkflows = workflowCategoryFilter === 'all'
         ? searchedWorkflows

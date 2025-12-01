@@ -106,7 +106,7 @@ export function renderModels() {
             : false;
 
         return nameMatch || descriptionMatch || tagMatch;
-    });
+    }).sort((a, b) => (a.modelName || a.name || '').localeCompare(b.modelName || b.name || ''));
     
     // Check if any models are in preview mode
     const inPreviewMode = filteredModels.some(m => m._previewMode);
