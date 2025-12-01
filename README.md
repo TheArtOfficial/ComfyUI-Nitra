@@ -12,7 +12,7 @@ Nitra Labs is an agency that excels at implementing, scaling, and finetuning AI 
 
 - [The Nitra Advantage](#the-nitra-advantage)
 - [Installing Nitra](#installing-nitra)
-  - [Install Scripts](#install-scripts)
+  - [Auto-Installers](#auto-installers)
   - [Comfy Manager](#comfy-manager)
   - [Manual Install](#manual-install)
   - [RunPod Template](#runpod-template)
@@ -56,7 +56,7 @@ Nitra has created an extremely efficient pipeline for getting workflows into you
 
 Nitra Labs offers a variety of ways to install the Nitra Plug-in into ComfyUI for optimal convenience.
 
-### Install Scripts
+### Auto-Installers
 
 Download the applicable script for your system, which can be found [at this link](https://github.com/TheArtOfficial/ComfyUI-Nitra/releases/tag/Installers).
 
