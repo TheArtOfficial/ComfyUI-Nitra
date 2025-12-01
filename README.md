@@ -61,7 +61,7 @@ Nitra Labs offers a variety of ways to install the Nitra Plug-in into ComfyUI fo
 Download the applicable script for your system, which can be found [at this link](https://github.com/TheArtOfficial/ComfyUI-Nitra/releases/tag/Installers).
 
 #### Windows Install
-Place the .bat file in the folder location on windows that you want to install ComfyUI with the Nitra Plug-in. Double click on the .bat file, and it will start to install ComfyUI with Nitra.
+Place the .bat file in the folder location on windows that you want to install ComfyUI-Nitra in. Double click on the .bat file, and it will start to install ComfyUI with Nitra.
 ![alt text](docs/images/batFileInstall.png)
 
 Inside the ComfyUI Folder, you will find a file called "run_comfy.bat". Double click this file to launch ComfyUI. Wait until the terminal stops producing text and then go to the next step.
@@ -70,7 +70,7 @@ Inside the ComfyUI Folder, you will find a file called "run_comfy.bat". Double c
 Navigate to [localhost:8188](localhost:8188) or [127.0.0.1:8188](127.0.0.1:8188) in your web browser of choice (Firefox or Google Chrome recommended).
 
 #### Linux Install
-Place the .sh file in the folder location on windows that you want to install ComfyUI with the Nitra Plug-in. Open a shell and run:
+Place the .sh file in the folder location that you want to install ComfyUI-Nitra in. Open a shell and run:
 
 ```./linux_install_nitra_comfy.sh```
 
