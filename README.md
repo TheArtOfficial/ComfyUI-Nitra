@@ -2,7 +2,7 @@
 
 > **Usage License:** Nitra Labs grants you a limited license to run the Nitra plugin inside ComfyUI for its intended functionality in commercial or non-commercial workflows. Any other commercial use—including copying, modifying, sublicensing, or redistributing this code or derivative works—requires prior written consent from Nitra Labs.
 
-### **Nitra makes private AI generation in ComfyUI effortless — built for film and VFX artists who demand privacy, polish, and more time to create. A plug-in right in ComfyUI, which makes the newest professional level workflows a click away.**
+### **Nitra makes private AI generation in ComfyUI effortless — built for film and VFX artists who demand privacy, polish, and more time to create. A plug-in right in ComfyUI, which makes the newest, professional-level, workflows a click away.**
 
 ## About Nitra Labs
 
