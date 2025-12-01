@@ -86,11 +86,22 @@ else
   log "ComfyUI already cloned, reusing existing copy"
 fi
 
+if [ ! -x "$VENV_PY" ]; then
+  log "Creating Python venv at $VENV_DIR"
+  "$PYTHON_BIN" -m venv "$VENV_DIR"
+fi
+
 CUSTOM_NODES_DIR="$APP_DIR/custom_nodes"
 CUSTOM_NODE_DIR="$CUSTOM_NODES_DIR/ComfyUI-Nitra"
 MANAGER_DIR="$CUSTOM_NODES_DIR/ComfyUI-Manager"
 
 mkdir -p "$CUSTOM_NODES_DIR"
+
+if [ -f "$APP_DIR/requirements.txt" ]; then
+  log "Installing ComfyUI requirements"
+  "$VENV_PIP" install torch==2.8.0 torchvision torchaudio --index-url "$TORCH_INDEX_URL"
+  "$VENV_PIP" install -r "$APP_DIR/requirements.txt" --extra-index-url "$TORCH_INDEX_URL"
+fi
 
 log "Ensuring ComfyUI-Manager"
 if [ ! -d "$MANAGER_DIR/.git" ]; then
@@ -113,24 +124,11 @@ else
   log "Using ComfyUI-Nitra repository default branch"
 fi
 
-if [ ! -x "$VENV_PY" ]; then
-  log "Creating Python venv at $VENV_DIR"
-  "$PYTHON_BIN" -m venv "$VENV_DIR"
-fi
-
 log "Upgrading pip/setuptools/wheel inside venv"
 "$VENV_PIP" install --upgrade pip setuptools wheel
 
 log "Installing keyring helpers"
 "$VENV_PIP" install keyrings.alt
-
-log "Installing PyTorch 2.8.0 stack"
-"$VENV_PIP" install torch==2.8.0 torchvision torchaudio --extra-index-url "$TORCH_INDEX_URL"
-
-if [ -f "$APP_DIR/requirements.txt" ]; then
-  log "Installing ComfyUI requirements"
-  "$VENV_PIP" install -r "$APP_DIR/requirements.txt" --extra-index-url "$TORCH_INDEX_URL"
-fi
 
 log "Installing SageAttention 2.2.0"
 "$VENV_PIP" install sageattention==2.2.0 --no-build-isolation

@@ -127,50 +127,50 @@ function renderWorkflowMediaArea(workflow, mediaItems) {
     `;
 }
 
+const sliderCache = new Map();
+const sliderState = new Map();
+
+function getSliderElements(workflowId) {
+    if (sliderCache.has(workflowId)) {
+        const cached = sliderCache.get(workflowId);
+        if (cached.container && cached.container.isConnected) {
+            return cached;
+        }
+        sliderCache.delete(workflowId);
+    }
+
+    const container = document.querySelector(`.workflow-media-compare[data-workflow-id="${workflowId}"]`);
+    if (!container) return null;
+
+    const elements = { 
+        container, 
+        overlay: container.querySelector(`[data-workflow-overlay="${workflowId}"]`),
+        sliderVisual: container.querySelector(`[data-workflow-slider-visual="${workflowId}"]`),
+        sliderInput: container.querySelector(`[data-workflow-slider="${workflowId}"]`)
+    };
+    sliderCache.set(workflowId, elements);
+    return elements;
+}
+
 function setWorkflowSliderValue(workflowId, rawValue) {
     const valueNumber = typeof rawValue === 'number' ? rawValue : Number(rawValue);
     if (Number.isNaN(valueNumber)) {
         return;
     }
     const value = Math.max(0, Math.min(100, valueNumber));
-    const overlay = document.querySelector(`[data-workflow-overlay="${workflowId}"]`);
-    if (overlay) {
-        overlay.style.clipPath = `inset(0 ${100 - value}% 0 0)`;
-    }
-    const sliderVisual = document.querySelector(`[data-workflow-slider-visual="${workflowId}"]`);
-    if (sliderVisual) {
-        sliderVisual.style.setProperty('--slider-position', `${value}%`);
-    }
-    const sliderInput = document.querySelector(`[data-workflow-slider="${workflowId}"]`);
-    if (sliderInput && sliderInput.value !== String(value)) {
-        sliderInput.value = String(value);
-    }
-}
+    
+    const elements = getSliderElements(workflowId);
+    if (!elements) return;
 
-function updateSliderFromPointer(event, workflowId) {
-    const container = document.querySelector(`.workflow-media-compare[data-workflow-id="${workflowId}"]`);
-    if (!container) {
-        return;
+    if (elements.overlay) {
+        elements.overlay.style.clipPath = `inset(0 ${100 - value}% 0 0)`;
     }
-    const rect = container.getBoundingClientRect();
-    if (!rect.width) {
-        return;
+    if (elements.sliderVisual) {
+        elements.sliderVisual.style.setProperty('--slider-position', `${value}%`);
     }
-    let clientX;
-    if (event && typeof event === 'object' && 'touches' in event) {
-        const touch = event.touches[0];
-        if (!touch) {
-            return;
-        }
-        clientX = touch.clientX;
-    } else if (event && typeof event.clientX === 'number') {
-        clientX = event.clientX;
+    if (elements.sliderInput && elements.sliderInput.value !== String(value)) {
+        elements.sliderInput.value = String(value);
     }
-    if (typeof clientX !== 'number') {
-        return;
-    }
-    const percent = ((clientX - rect.left) / rect.width) * 100;
-    setWorkflowSliderValue(workflowId, percent);
 }
 
 function attachWorkflowMediaCompareListeners() {
@@ -245,7 +245,39 @@ if (typeof window !== 'undefined') {
         if (event && typeof event.preventDefault === 'function' && event.type && event.type.startsWith('touch')) {
             event.preventDefault();
         }
-        updateSliderFromPointer(event, workflowId);
+
+        let clientX;
+        if (event && typeof event === 'object' && 'touches' in event) {
+            const touch = event.touches[0];
+            if (touch) clientX = touch.clientX;
+        } else if (event) {
+            clientX = event.clientX;
+        }
+
+        if (typeof clientX !== 'number') return;
+
+        let state = sliderState.get(workflowId);
+        if (!state) {
+            state = { rafId: null, clientX: 0 };
+            sliderState.set(workflowId, state);
+        }
+        
+        state.clientX = clientX;
+
+        if (!state.rafId) {
+            state.rafId = requestAnimationFrame(() => {
+                state.rafId = null;
+                
+                const elements = getSliderElements(workflowId);
+                if (!elements) return;
+
+                const rect = elements.container.getBoundingClientRect();
+                if (!rect.width) return;
+
+                const percent = ((state.clientX - rect.left) / rect.width) * 100;
+                setWorkflowSliderValue(workflowId, percent);
+            });
+        }
     };
 }
 
