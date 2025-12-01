@@ -10,6 +10,7 @@ Nitra Labs is an agency that excels at implementing, scaling, and finetuning AI 
 
 ## Table of Contents
 
+- [The Nitra Advantage](#the-nitra-advantage)
 - [Installing Nitra](#installing-nitra)
   - [Install Scripts](#install-scripts)
   - [Comfy Manager](#comfy-manager)
@@ -29,6 +30,26 @@ Nitra Labs is an agency that excels at implementing, scaling, and finetuning AI 
 - [User Configuration](#user-configuration)
 - [How Can We Help?](#how-can-we-help)
 - [Logout](#logout)
+
+## The Nitra Advantage
+
+The Nitra Plug-in for ComfyUI gives you instant access to premium workflows specifically designed for production pipelines. The Nitra difference is when you download a workflow, you get everything needed to run the workflow. No more searching for obscure custom nodes or models. On top of that, the workflows are condensed into easy-to-use subgraphs that can be searched just like any node. Let's walk through an example.
+
+Let's install Z-Image Turbo
+![alt text](docs/images/z-image-turbo-download.png)
+
+After clicking Install, all workflows, subgraphs, custom nodes, and models for running z-image-turbo will install.
+![alt text](docs/images/z-image-download-summary.png)
+
+Now let's restart ComfyUI, and check out what was auto installed for us!
+
+This is the workflow already setup with documentation for what all of the inputs and outputs of the subgraph do. The models were already installed, so just click "Run" and as long as you have the VRAM to run the workflow, it will run immediately.
+![alt text](docs/images/z-image-turbo-workflow-image.png)
+
+Here is the searchable subgraph. Search for it as you would any other node, and connect it into your favorite image-to-video workflow or anywhere else you'd like.
+![alt text](docs/images/z-image-subgraph.png)
+
+Nitra has created an extremely efficient pipeline for getting workflows into your hands quickly, so when a new model is released, Nitra is committed to delivering the capability to you quickly and seamlessly.
 
 ## Installing Nitra
 
@@ -168,7 +189,8 @@ After subscribing, head back to ComfyUI, refresh your browser, and you should se
 
 ### Model Installer
 
-### Install Missing (Coming Soon)
+### Install Missing (Coming Soon!)
+When Implemented, this will allow users to open any workflow in ComfyUI and Nitra will attempt to find all custom nodes and models needed for that workflow, and install them for you. No more searching through the manager or scouring huggingface to find the correct model.
 
 ### User Configuration
 

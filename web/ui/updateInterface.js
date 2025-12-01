@@ -413,6 +413,7 @@ export function createUpdateInterface() {
                     <button id="nitra-tab-optimizer" class="nitra-tab nitra-tab-active" role="tab" aria-selected="true" aria-controls="nitra-optimizer-content">ComfyUI Optimizer</button>
                     <button id="nitra-tab-workflows" class="nitra-tab" role="tab" aria-selected="false" aria-controls="nitra-workflows-content">Workflows</button>
                     <button id="nitra-tab-models" class="nitra-tab" role="tab" aria-selected="false" aria-controls="nitra-models-content">Models</button>
+                    <button id="nitra-tab-install-missing" class="nitra-tab" role="tab" disabled style="opacity: 0.5; cursor: not-allowed;">Install Missing (coming soon!)</button>
                     <button id="nitra-tab-user-config" class="nitra-tab" role="tab" aria-selected="false" aria-controls="nitra-user-config-content">User Configuration</button>
                     <button id="nitra-tab-help" class="nitra-tab" role="tab" aria-selected="false" aria-controls="nitra-help-content">How can we help?</button>
                     <button id="nitra-logout-btn" class="nitra-tab" role="tab">Logout</button>
