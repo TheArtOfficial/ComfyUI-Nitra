@@ -2,6 +2,7 @@ import { app } from "/scripts/app.js";
 import { api } from "/scripts/api.js";
 import { API_ENDPOINTS } from './core/constants.js';
 import { fetchConfig, getCallbackUrl, getOAuthConfig, getWebsiteBaseUrl, setWebsiteBaseUrl } from './core/config.js';
+import { ensureDataPrefetch } from './core/preload.js';
 import * as state from './core/state.js';
 import { loginWithWebsite, handleWebsiteCallbackFromUrl, handlePopupAuthResult } from './auth/oauth.js';
 import { checkWebsiteSession, restoreSessionOnLoad, ensureFreshAccessToken } from './auth/session.js';
@@ -407,6 +408,7 @@ app.registerExtension({
             console.log("Nitra: Authentication tokens detected in URL, processing callback");
             const success = handleWebsiteCallbackFromUrl(updateDialogForAuthenticated);
             if (success) {
+                ensureDataPrefetch();
                 // Show splash screen after a brief delay to ensure authentication is complete
                 // License status will be fetched when splash opens (after DOM creation)
                 setTimeout(() => {
@@ -422,6 +424,9 @@ app.registerExtension({
         } else {
             // Only check for existing session if no auth tokens in URL and no refresh flag
             const sessionRestored = await restoreSessionOnLoad();
+            if (sessionRestored) {
+                ensureDataPrefetch();
+            }
             // Don't fetch license here - it will be fetched when/if the splash screen opens
         }
         
