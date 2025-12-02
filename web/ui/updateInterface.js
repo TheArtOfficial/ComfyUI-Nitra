@@ -6,7 +6,7 @@ import { getWebsiteBaseUrl } from '../core/config.js';
 import { formatLicenseStatus, initializeLicenseStatus } from '../license/status.js';
 import { logoutWebsite } from '../auth/logout.js';
 import { updateListHeights } from './layout.js';
-import { loadWorkflows } from '../workflows/api.js';
+import { loadWorkflows, checkWorkflowsForHFTokenRequirement } from '../workflows/api.js';
 import { renderWorkflows } from '../workflows/ui.js';
 import { updateWorkflowInstallButton } from '../workflows/selection.js';
 import { pollForWorkflowCompletion, cancelWorkflowInstall, resetWorkflowInstallButton } from '../workflows/installation.js';
@@ -18,6 +18,7 @@ import { updateDialogForLogin } from './dialog.js';
 import { createCloseButton } from './components/CloseButton.js';
 import { handleOptimizerUpdate, handleOptimizerUpdateNitra, handleOptimizerRestart, handleOptimizerRefresh } from '../optimizer/handlers.js';
 import { showPyTorchModal, showSageAttentionModal, showONNXModal, showTritonWindowsModal, showCudaToolkitModal, showBuildToolsModal, showBuildToolsShellModal } from '../optimizer/package-modals.js';
+import { showHuggingFaceTokenPrompt } from './systemPrompts.js';
 import { getDeviceIdentity, fetchRegisteredDevices, registerCurrentDevice } from '../device/api.js';
 
 let lastActiveTab = 'optimizer';
@@ -1612,6 +1613,12 @@ export function createUpdateInterface() {
                 const hfTokenInput = document.getElementById('nitra-workflow-hf-token');
                 const hfToken = hfTokenInput ? hfTokenInput.value.trim() : '';
                 
+                const requiresHfToken = await checkWorkflowsForHFTokenRequirement();
+                if (requiresHfToken && !hfToken) {
+                    showHuggingFaceTokenPrompt({ context: 'workflow' });
+                    return;
+                }
+
                 // Start installation
                 state.setOngoingWorkflowInstall(true);
                 
@@ -1692,6 +1699,15 @@ export function createUpdateInterface() {
                 const hfTokenInput = document.getElementById('nitra-hf-token');
                 const hfToken = hfTokenInput ? hfTokenInput.value.trim() : '';
                 
+                const modelsRequireHfToken = Array.from(state.selectedModels).some(modelId => {
+                    const model = state.modelsData.find(m => m && m.id === modelId);
+                    return model && model.hfTokenRequired;
+                });
+                if (modelsRequireHfToken && !hfToken) {
+                    showHuggingFaceTokenPrompt({ context: 'model' });
+                    return;
+                }
+
                 // Start download
                 state.setOngoingModelDownload(true);
                 

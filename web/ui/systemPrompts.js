@@ -7,6 +7,7 @@ const MODAL_KEYS = {
     refresh: 'nitra-refresh-required',
     restart: 'nitra-restart-required',
     postRestartRefresh: 'post-restart-refresh',
+    hfToken: 'nitra-hf-token-required',
 };
 
 const SPLASH_FLAG_KEY = 'nitra_show_splash_after_refresh';
@@ -308,5 +309,76 @@ export function showPostRestartRefreshPrompt() {
 
 export function dismissRestartPrompt() {
     closeRestartModal();
+}
+
+export function showHuggingFaceTokenPrompt(options = {}) {
+    if (modalExists(MODAL_KEYS.hfToken)) {
+        return;
+    }
+
+    const context = options.context === 'workflow' ? 'workflow' : 'model';
+    const contextMessage =
+        context === 'workflow'
+            ? 'One or more selected workflows include models that require a HuggingFace access token.'
+            : 'One or more selected models require a HuggingFace access token.';
+
+    const steps = [
+        {
+            title: 'Create a token',
+            description:
+                'Open HuggingFace and generate a Personal Access Token with read permissions.',
+        },
+        {
+            title: 'Save it in User Configuration',
+            description:
+                'In the Nitra dialog, open the User Configuration tab and paste your token so downloads can auto-fill it in the future.',
+        },
+    ];
+
+    let overlay = null;
+    const close = () => {
+        removeModal(overlay);
+        overlay = null;
+        if (typeof options.onClose === 'function') {
+            options.onClose();
+        }
+    };
+
+    const openHfButton = Button({
+        text: 'Open HuggingFace',
+        variant: 'secondary',
+        id: 'nitra-open-hf-token',
+        onClick: () => {
+            window.open('https://huggingface.co/settings/tokens', '_blank', 'noopener,noreferrer');
+        },
+    });
+
+    const dismissButton = Button({
+        text: 'Got it',
+        variant: 'primary',
+        id: 'nitra-dismiss-hf-token',
+        onClick: close,
+    });
+
+    overlay = Modal({
+        title: 'HuggingFace Token Required',
+        maxWidth: '560px',
+        onClose: close,
+        showCloseButton: true,
+        children: [
+            div({ className: 'nitra-modal-message' }, contextMessage),
+            div(
+                { className: 'nitra-modal-steps' },
+                ...steps.map((step, index) => createStep(String(index + 1), step.title, step.description)),
+            ),
+            div(
+                { className: 'nitra-modal-message' },
+                'Once your token is saved in User Configuration, Nitra will reuse it automatically whenever a workflow or model requires HuggingFace access.',
+            ),
+            div({ className: 'nitra-modal-actions' }, dismissButton, openHfButton),
+        ],
+    });
+
+    mountModal(overlay, MODAL_KEYS.hfToken);
 }
 
