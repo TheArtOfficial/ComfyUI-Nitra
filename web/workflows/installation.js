@@ -41,17 +41,6 @@ export async function pollForWorkflowCompletion(button, originalText) {
         }
     }, 2000)); // Poll every 2 seconds
     
-    // Stop polling after 10 minutes (safety timeout)
-    setTimeout(() => {
-        if (state.workflowPollInterval) {
-            clearInterval(state.workflowPollInterval);
-            state.setWorkflowPollInterval(null);
-        }
-        if (state.ongoingWorkflowInstall) {
-            state.setOngoingWorkflowInstall(false);
-            updateWorkflowInstallButton();
-        }
-    }, 600000);
 }
 
 export async function cancelWorkflowInstall() {
@@ -70,6 +59,9 @@ export async function cancelWorkflowInstall() {
             // Reset button state
             state.setOngoingWorkflowInstall(false);
             updateWorkflowInstallButton();
+            if (typeof state.setPendingRefreshAfterRestart === 'function') {
+                state.setPendingRefreshAfterRestart(false);
+            }
         } else {
             console.error("Failed to cancel workflow installation");
         }
@@ -83,6 +75,9 @@ export async function cancelWorkflowInstall() {
         // Reset button state even on error
         state.setOngoingWorkflowInstall(false);
         updateWorkflowInstallButton();
+        if (typeof state.setPendingRefreshAfterRestart === 'function') {
+            state.setPendingRefreshAfterRestart(false);
+        }
     }
 }
 
