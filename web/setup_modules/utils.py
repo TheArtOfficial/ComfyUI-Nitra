@@ -5,6 +5,7 @@ Common utilities for ComfyUI setup
 import subprocess
 import os
 from typing import List, Optional
+from subprocess import CompletedProcess
 from .logging_setup import get_logger
 
 logger = get_logger(__name__)
@@ -43,6 +44,53 @@ def run_command(cmd: List[str], cwd: Optional[str] = None, capture_output: bool 
     except Exception as e:
         logger.error(f"Command failed: {e}")
         raise
+
+
+def run_pip_subprocess(
+    pip_cmd: List[str],
+    args: List[str],
+    *,
+    cwd: Optional[str] = None,
+    log_output: bool = True,
+) -> CompletedProcess:
+    """
+    Run pip in a fully separate Python process that shares the same interpreter/venv
+    but avoids reusing the currently running interpreter state.
+    """
+    cmd = list(pip_cmd) + args
+    logger.info(f"Running pip command in isolated process: {' '.join(cmd)}")
+
+    try:
+        process = subprocess.Popen(
+            cmd,
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            universal_newlines=True,
+            close_fds=True,
+        )
+    except Exception as exc:
+        logger.error(f"Failed to launch pip command: {exc}")
+        raise
+
+    output_lines: List[str] = []
+    try:
+        if process.stdout:
+            for line in process.stdout:
+                output_lines.append(line)
+                if log_output:
+                    logger.info(line.rstrip())
+        return_code = process.wait()
+    finally:
+        if process.stdout:
+            process.stdout.close()
+
+    if return_code != 0:
+        logger.error(f"Pip command failed with exit code {return_code}")
+
+    return CompletedProcess(cmd, return_code, ''.join(output_lines), None)
 
 
 def ensure_directory(path: str) -> None:

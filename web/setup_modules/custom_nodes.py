@@ -7,7 +7,7 @@ import csv
 from typing import Optional
 
 from .config import ComfyUIConfig
-from .utils import run_command
+from .utils import run_command, run_pip_subprocess
 from .logging_setup import get_logger
 
 logger = get_logger(__name__)
@@ -143,8 +143,12 @@ def _install_node_requirements(target_dir: str, name: str, config: ComfyUIConfig
     for req_file in requirements_files:
         req_path = os.path.join(target_dir, req_file)
         if os.path.isfile(req_path):
-            cmd = config.venv_pip + ['install', '--no-warn-script-location', '-r', req_path, '--quiet']
-            result = run_command(cmd, log_output=False)
+            result = run_pip_subprocess(
+                config.venv_pip,
+                ['install', '--no-warn-script-location', '-r', req_path, '--quiet'],
+                cwd=target_dir,
+                log_output=False,
+            )
             if result.returncode != 0:
                 logger.warning(f"Failed to install requirements for {name}")
             break
