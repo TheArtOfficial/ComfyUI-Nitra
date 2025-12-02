@@ -27,8 +27,9 @@ export async function pollForWorkflowCompletion(button, originalText) {
                     setTimeout(() => {
                         resetWorkflowInstallButton(button, originalText);
                     }, 3000);
-                    state.setPendingRefreshAfterRestart(true);
-                    showRestartPrompt();
+                    showRestartPrompt({
+                        onRestartSuccess: () => state.setPendingRefreshAfterRestart(true),
+                    });
                 }
             }
         } catch (error) {

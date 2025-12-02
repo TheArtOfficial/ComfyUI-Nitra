@@ -217,6 +217,13 @@ export function showRestartPrompt(options = {}) {
             }
 
             restartStatusNode.textContent = copy.waitingMessage || DEFAULT_RESTART_COPY.waitingMessage;
+            if (typeof copy.onRestartSuccess === 'function') {
+                try {
+                    copy.onRestartSuccess();
+                } catch (callbackError) {
+                    console.warn('Nitra: onRestartSuccess callback failed', callbackError);
+                }
+            }
         }
     });
 

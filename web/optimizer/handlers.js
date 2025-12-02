@@ -1923,10 +1923,10 @@ export async function handleOptimizerUpdate(button) {
             const result = await response.json();
             
             if (result.success) {
-                state.setPendingRefreshAfterRestart(true);
                 showRestartPrompt({
                     message: 'Restart ComfyUI to finish applying the update.',
-                    statusMessage: 'Restart ComfyUI when you are ready. We will prompt you to refresh once it is back online.'
+                    statusMessage: 'Restart ComfyUI when you are ready. We will prompt you to refresh once it is back online.',
+                    onRestartSuccess: () => state.setPendingRefreshAfterRestart(true),
                 });
             } else if (result.errors) {
                 alert(`Update completed with errors:\n${result.errors.join('\n')}\n\nPlease check the logs for details.`);
@@ -1956,10 +1956,10 @@ export async function handleOptimizerUpdateNitra(button) {
             const result = await response.json();
             
             if (result.success) {
-                state.setPendingRefreshAfterRestart(true);
                 showRestartPrompt({
                     message: 'Restart ComfyUI to finish applying the Nitra update.',
-                    statusMessage: 'Restart ComfyUI when you are ready. We will prompt you to refresh once it reconnects.'
+                    statusMessage: 'Restart ComfyUI when you are ready. We will prompt you to refresh once it reconnects.',
+                    onRestartSuccess: () => state.setPendingRefreshAfterRestart(true),
                 });
             } else {
                 alert(`Update failed: ${result.error || 'Unknown error'}`);
