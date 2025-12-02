@@ -40,7 +40,7 @@ function renderMediaElement(mediaItem, workflowId, options = {}) {
         `;
     }
 
-    const source = mediaItem.proxyUrl || mediaItem.fileUrl || mediaItem.url || '';
+    const source = mediaItem.fileUrl || mediaItem.proxyUrl || mediaItem.url || '';
     if (!source) {
         return `
             <div class="workflow-media-placeholder"></div>

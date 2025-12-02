@@ -12,6 +12,8 @@ let existingModelsCacheTimestamp = 0;
 const EXISTING_MODELS_CACHE_TTL_MS = 60 * 1000; // 1 minute
 let workflowsFetchPromise = null;
 let workflowsFetchSilent = true;
+const MEDIA_REFRESH_SAFETY_MS = 2 * 60 * 1000;
+let mediaRefreshTimer = null;
 
 function shouldRefreshWorkflows(cacheInfo, hasSubscription) {
     if (!cacheInfo) {
@@ -34,6 +36,7 @@ function clearWorkflowCaches() {
     subgraphDependenciesCache.clear();
     existingModelsCache = null;
     existingModelsCacheTimestamp = 0;
+    clearMediaRefreshTimer();
 }
 
 function seedWorkflowCache(workflows) {
@@ -107,6 +110,7 @@ async function fetchAndPersistWorkflows(hasSubscription, { silent } = {}) {
             } else {
                 state.setWorkflowsData(state.workflowsData, { mode });
             }
+            scheduleMediaRefresh(state.workflowsData);
 
             return true;
         } catch (error) {
@@ -213,7 +217,7 @@ async function fetchSubgraphDependencies(subgraphId) {
 }
 
 export async function loadWorkflows(options = {}) {
-    const { backgroundRefresh = true } = options;
+    const { backgroundRefresh = true, force = false } = options;
     const cacheInfo = typeof state.getWorkflowsCacheInfo === 'function' ? state.getWorkflowsCacheInfo() : null;
     const hasCached = cacheInfo && Array.isArray(cacheInfo.data) && cacheInfo.data.length > 0;
     const workflowsList = document.getElementById('nitra-workflows-list');
@@ -225,7 +229,7 @@ export async function loadWorkflows(options = {}) {
         state.currentLicenseStatus &&
         (state.currentLicenseStatus.has_paid_subscription || state.currentLicenseStatus.status === 'paid');
 
-    const needsRefresh = shouldRefreshWorkflows(cacheInfo, hasSubscription);
+    const needsRefresh = force || shouldRefreshWorkflows(cacheInfo, hasSubscription);
 
     if (!state.currentUser || !state.currentUser.apiToken) {
         console.warn('Nitra: Cannot load workflows without an authenticated user');
@@ -239,7 +243,7 @@ export async function loadWorkflows(options = {}) {
         return true;
     }
 
-    return fetchAndPersistWorkflows(hasSubscription, { silent: false });
+    return fetchAndPersistWorkflows(hasSubscription, { silent: backgroundRefresh });
 }
 
 export async function getExistingModels() {
@@ -420,6 +424,53 @@ export async function collectWorkflowInstallMessages(workflowIds) {
     );
 
     return details.filter(Boolean);
+}
+
+function clearMediaRefreshTimer() {
+    if (mediaRefreshTimer) {
+        clearTimeout(mediaRefreshTimer);
+        mediaRefreshTimer = null;
+    }
+}
+
+function scheduleMediaRefresh(workflows) {
+    clearMediaRefreshTimer();
+    if (!Array.isArray(workflows) || workflows.length === 0) {
+        return;
+    }
+
+    let soonestExpiry = null;
+    workflows.forEach((workflow) => {
+        if (!workflow || !Array.isArray(workflow.media)) {
+            return;
+        }
+        workflow.media.forEach((mediaItem) => {
+            if (!mediaItem) {
+                return;
+            }
+            const expiresAt = mediaItem.fileUrlExpiresAt || mediaItem.file_url_expires_at;
+            if (!expiresAt) {
+                return;
+            }
+            const timestamp = Date.parse(expiresAt);
+            if (Number.isNaN(timestamp)) {
+                return;
+            }
+            if (soonestExpiry === null || timestamp < soonestExpiry) {
+                soonestExpiry = timestamp;
+            }
+        });
+    });
+
+    if (!soonestExpiry) {
+        return;
+    }
+
+    const delay = Math.max(0, soonestExpiry - MEDIA_REFRESH_SAFETY_MS - Date.now());
+    mediaRefreshTimer = setTimeout(() => {
+        mediaRefreshTimer = null;
+        loadWorkflows({ backgroundRefresh: true, force: true });
+    }, delay);
 }
 
 
