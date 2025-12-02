@@ -52,6 +52,10 @@ const headerCell = (index, label, resizable = true) => {
 export function renderModels() {
     const modelsList = document.getElementById('nitra-models-list');
     if (!modelsList) return;
+
+    if (typeof state.hydrateModelsFromCache === 'function') {
+        state.hydrateModelsFromCache();
+    }
     
     // Ensure modelsData is an array
     if (!Array.isArray(state.modelsData)) {

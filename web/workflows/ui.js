@@ -284,6 +284,10 @@ if (typeof window !== 'undefined') {
 export function renderWorkflows() {
     const workflowsList = document.getElementById('nitra-workflows-list');
     if (!workflowsList) return;
+
+    if (typeof state.hydrateWorkflowsFromCache === 'function') {
+        state.hydrateWorkflowsFromCache();
+    }
     
     // Ensure workflowsData is an array
     if (!Array.isArray(state.workflowsData)) {

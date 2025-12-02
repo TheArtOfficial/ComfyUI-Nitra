@@ -197,3 +197,29 @@ export function getLatestDataVersion(list) {
     return computeLatestTimestamp(list);
 }
 
+export function hydrateWorkflowsFromCache() {
+    if (Array.isArray(workflowsData) && workflowsData.length > 0) {
+        return false;
+    }
+    const record = readCacheRecord(WORKFLOWS_CACHE_KEY);
+    if (!record || !Array.isArray(record.data) || record.data.length === 0) {
+        return false;
+    }
+    workflowsCacheInfo = buildCacheInfo(record);
+    workflowsData = Array.isArray(workflowsCacheInfo.data) ? workflowsCacheInfo.data : [];
+    return workflowsData.length > 0;
+}
+
+export function hydrateModelsFromCache() {
+    if (Array.isArray(modelsData) && modelsData.length > 0) {
+        return false;
+    }
+    const record = readCacheRecord(MODELS_CACHE_KEY);
+    if (!record || !Array.isArray(record.data) || record.data.length === 0) {
+        return false;
+    }
+    modelsCacheInfo = buildCacheInfo(record);
+    modelsData = Array.isArray(modelsCacheInfo.data) ? modelsCacheInfo.data : [];
+    return modelsData.length > 0;
+}
+
