@@ -4,8 +4,154 @@
 import * as state from '../core/state.js';
 import { getWebsiteBaseUrl } from '../core/config.js';
 import { updateWorkflowInstallButton } from './selection.js';
+import { fetchWorkflowDetails } from './api.js';
 
 let workflowCategoryFilter = 'all';
+const WORKFLOW_VERSION_KEYS = [
+    'updated_at',
+    'updatedAt',
+    'dateUpdated',
+    'date_updated',
+    'dateModified',
+    'modified_at',
+    'modifiedAt',
+    'lastUpdated',
+    'workflow_updated_at'
+];
+const WORKFLOW_RENDER_BATCH_SIZE = 12;
+const workflowCardCache = new Map();
+const workflowMediaHydration = new Map();
+const workflowMediaBuffer = new Map();
+let workflowRenderToken = 0;
+let workflowIdFallbackCounter = 0;
+
+function scheduleWorkflowBatch(callback) {
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(callback);
+    } else if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(callback);
+    } else {
+        setTimeout(callback, 16);
+    }
+}
+
+function resolveWorkflowId(workflow) {
+    if (!workflow || typeof workflow !== 'object') {
+        return null;
+    }
+    if (workflow.id) return String(workflow.id);
+    if (workflow.workflowId) return String(workflow.workflowId);
+    if (workflow.workflow_id) return String(workflow.workflow_id);
+    if (workflow.slug) return String(workflow.slug);
+    if (!workflow.__workflowGeneratedId) {
+        workflow.__workflowGeneratedId = `workflow-auto-${++workflowIdFallbackCounter}`;
+    }
+    return workflow.__workflowGeneratedId;
+}
+
+function parseTimestamp(value) {
+    if (value === null || value === undefined) {
+        return null;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+    }
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return null;
+        }
+        const numeric = Number(trimmed);
+        if (!Number.isNaN(numeric)) {
+            return numeric;
+        }
+        const parsed = Date.parse(trimmed);
+        return Number.isNaN(parsed) ? null : parsed;
+    }
+    return null;
+}
+
+function getMediaSource(mediaItem) {
+    if (!mediaItem || typeof mediaItem !== 'object') {
+        return '';
+    }
+
+    // 1. Check explicit expiry field if available (preferred)
+    const explicitExpires = mediaItem.fileUrlExpiresAt || mediaItem.file_url_expires_at;
+    if (explicitExpires) {
+        const expiryTime = new Date(explicitExpires).getTime();
+        if (!isNaN(expiryTime) && expiryTime < Date.now()) {
+            return '';
+        }
+    }
+
+    const source = (
+        mediaItem.fileUrl ||
+        mediaItem.file_url ||
+        mediaItem.proxyUrl ||
+        mediaItem.proxy_url ||
+        mediaItem.url ||
+        mediaItem.file ||
+        ''
+    );
+
+    if (!source) return '';
+
+    // 2. Check for S3/presigned URL expiration in the query string
+    // Format: ?...&Expires=1234567890&...
+    try {
+        // Use a dummy base for relative URLs (though these are likely absolute)
+        const urlObj = new URL(source, 'http://dummy.com'); 
+        const expiresParam = urlObj.searchParams.get('Expires'); // Case-sensitive usually, S3 uses 'Expires' or 'X-Amz-Expires' (relative)
+        
+        // Standard Expires param (absolute timestamp in seconds)
+        if (expiresParam) {
+            const expiryTimestamp = parseInt(expiresParam, 10) * 1000;
+            const now = Date.now();
+            // Add 10-second buffer to be safe
+            if (!isNaN(expiryTimestamp) && expiryTimestamp < now + 10000) {
+                return '';
+            }
+        }
+    } catch (e) {
+        // Ignore URL parsing errors
+    }
+
+    return source;
+}
+
+function computeWorkflowVersion(workflow) {
+    const versionCandidates = WORKFLOW_VERSION_KEYS.map(key => parseTimestamp(workflow[key])).filter(Boolean);
+    const timestamp = versionCandidates.length ? Math.max(...versionCandidates) : null;
+    const metadataSignature = JSON.stringify({
+        name: workflow.name || '',
+        description: workflow.description || '',
+        preview: !!workflow._previewMode,
+        installMessage: workflow.workflowInstallMessage || workflow.installMessage || workflow.install_message || '',
+        tags: Array.isArray(workflow.tags) ? workflow.tags.join('|') : '',
+        categories: Array.isArray(workflow.categories) ? workflow.categories.join('|') : ''
+    });
+    return [timestamp ? String(timestamp) : null, metadataSignature].filter(Boolean).join('|') || metadataSignature;
+}
+
+function computeMediaSignature(workflow) {
+    if (!workflow || !Array.isArray(workflow.media) || workflow.media.length === 0) {
+        return 'no-media';
+    }
+    const normalized = workflow.media
+        .filter(Boolean)
+        .map(item => {
+            if (!item || typeof item !== 'object') {
+                return 'empty';
+            }
+            const source = getMediaSource(item);
+            const expiresAt = item.fileUrlExpiresAt || item.file_url_expires_at || '';
+            const updated = item.updated_at || item.updatedAt || '';
+            const mediaId = item.id || item.key || '';
+            return [mediaId, source, expiresAt, updated].filter(Boolean).join('~') || 'media';
+        });
+    return `${workflow.media.length}:${normalized.join('||')}`;
+}
 
 function renderCategoryFilterOptions(categories) {
     const select = document.getElementById('nitra-workflow-category-filter');
@@ -33,6 +179,7 @@ function renderCategoryFilterOptions(categories) {
 
 // Global helpers so inline handlers on cards can control video playback
 function renderMediaElement(mediaItem, workflowId, options = {}) {
+    // console.log('Nitra: renderMediaElement', workflowId, JSON.stringify(mediaItem).slice(0, 100));
     const { role = 'base', clipPercent = 50 } = options;
     if (!mediaItem) {
         return `
@@ -40,7 +187,7 @@ function renderMediaElement(mediaItem, workflowId, options = {}) {
         `;
     }
 
-    const source = mediaItem.fileUrl || mediaItem.proxyUrl || mediaItem.url || '';
+    const source = getMediaSource(mediaItem);
     if (!source) {
         return `
             <div class="workflow-media-placeholder"></div>
@@ -62,6 +209,7 @@ function renderMediaElement(mediaItem, workflowId, options = {}) {
                 data-workflow-video="${workflowId}"
                 src="${source}"
                 muted
+                autoplay
                 playsinline
                 loop
             ></video>
@@ -80,7 +228,13 @@ function renderMediaElement(mediaItem, workflowId, options = {}) {
 }
 
 function renderWorkflowMediaArea(workflow, mediaItems) {
-    if (!mediaItems || mediaItems.length === 0) {
+    const workflowId = resolveWorkflowId(workflow);
+    // Ensure we only try to render items that actually have a source URL
+    const validItems = Array.isArray(mediaItems) ? mediaItems.filter(item => getMediaSource(item)) : [];
+    
+    // console.log('Nitra: renderWorkflowMediaArea processing', workflowId, validItems.length, 'valid items');
+
+    if (!validItems || validItems.length === 0) {
         return `
             <div class="workflow-media-area">
                 <div class="workflow-media-placeholder"></div>
@@ -88,19 +242,19 @@ function renderWorkflowMediaArea(workflow, mediaItems) {
         `;
     }
 
-    if (mediaItems.length >= 2) {
-        const primary = mediaItems[0];
-        const secondary = mediaItems[1];
+    if (validItems.length >= 2) {
+        const primary = validItems[0];
+        const secondary = validItems[1];
         const initialClip = 50;
         return `
             <div class="workflow-media-area">
                 <div
                     class="workflow-media-compare"
-                    data-workflow-id="${workflow.id}"
+                    data-workflow-id="${workflowId}"
                 >
-                    ${renderMediaElement(secondary, workflow.id, { role: 'base' })}
-                    ${renderMediaElement(primary, workflow.id, { role: 'overlay', clipPercent: initialClip })}
-                    <div class="workflow-media-slider-visual" data-workflow-slider-visual="${workflow.id}" style="--slider-position: ${initialClip}%;">
+                    ${renderMediaElement(secondary, workflowId, { role: 'base' })}
+                    ${renderMediaElement(primary, workflowId, { role: 'overlay', clipPercent: initialClip })}
+                    <div class="workflow-media-slider-visual" data-workflow-slider-visual="${workflowId}" style="--slider-position: ${initialClip}%;">
                         <div class="workflow-media-slider-line"></div>
                     </div>
                     <input
@@ -109,8 +263,8 @@ function renderWorkflowMediaArea(workflow, mediaItems) {
                         max="100"
                         value="${initialClip}"
                         class="workflow-media-slider-input"
-                        data-workflow-slider="${workflow.id}"
-                        oninput="nitraAdjustWorkflowSlider('${workflow.id}', this.value)"
+                        data-workflow-slider="${workflowId}"
+                        oninput="nitraAdjustWorkflowSlider('${workflowId}', this.value)"
                         aria-label="Compare workflow media"
                         aria-hidden="true"
                         tabindex="-1"
@@ -122,13 +276,314 @@ function renderWorkflowMediaArea(workflow, mediaItems) {
 
     return `
         <div class="workflow-media-area">
-            ${renderMediaElement(mediaItems[0], workflow.id)}
+            ${renderMediaElement(validItems[0], workflowId)}
         </div>
     `;
 }
 
 const sliderCache = new Map();
 const sliderState = new Map();
+
+function workflowHasDisplayableMedia(workflow) {
+    if (!workflow || !Array.isArray(workflow.media)) {
+        return false;
+    }
+    return workflow.media.some(item => item && typeof item === 'object' && getMediaSource(item));
+}
+
+function buildWorkflowCardMarkup(workflow) {
+    const workflowId = resolveWorkflowId(workflow);
+    const isPreview = workflow._previewMode;
+    const lockIcon = isPreview ? ' 🔒' : '';
+    // Filter media items to ensure they are valid objects
+    const mediaItems = Array.isArray(workflow.media) ? workflow.media.filter(item => item && typeof item === 'object') : [];
+    const mediaMarkup = renderWorkflowMediaArea(workflow, mediaItems);
+    const checkboxAttributes = isPreview ? 'disabled' : 'onclick="event.stopPropagation();"';
+    const workflowName = workflow.name || 'Unnamed Workflow';
+    const description = workflow.description || 'No description available';
+
+    return `
+        <div class="workflow-card" style="
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            padding: 0;
+            border-radius: 18px;
+            background: #050505;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 10px 35px rgba(0,0,0,0.55);
+            min-height: 260px;
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+            cursor: pointer;
+        "
+        ${!isPreview ? `onclick="document.getElementById('workflow-${workflowId}').click();"` : ''}
+        onmouseover="this.style.boxShadow='0 18px 40px rgba(0,0,0,0.7)'; nitraPlayWorkflowVideo('${workflowId}');"
+        onmouseout="this.style.boxShadow='0 10px 35px rgba(0,0,0,0.55)'; nitraPauseWorkflowVideo('${workflowId}');"
+        >
+            ${mediaMarkup}
+            <div style="position:relative; z-index:1; display:flex; flex-direction:column; justify-content:space-between; height:100%; padding:16px 16px 14px 16px; pointer-events:none;">
+                <div style="display:flex; align-items:flex-start; justify-content:flex-start; gap:10px; pointer-events:auto;">
+                    <label style="display:flex; align-items:center; gap:10px; color:#f9fafb; font-weight:600; cursor:pointer;">
+                        <input type="checkbox" id="workflow-${workflowId}" value="${workflowId}" ${checkboxAttributes} style="transform:scale(1.15);">
+                        <span style="text-shadow:0 2px 4px rgba(0,0,0,0.9);">${workflowName}${lockIcon}</span>
+                    </label>
+                </div>
+                <div style="margin-top:auto; pointer-events:auto;">
+                    <div style="font-size: 0.9em; color: #f9fafb; opacity: 0.92; line-height: 1.6; text-shadow:0 1px 3px rgba(0,0,0,0.9);">
+                        ${description}
+                    </div>
+                    ${isPreview ? `<div style="font-size: 0.8em; color: #fbbf24; font-weight: 600; margin-top:6px; text-shadow:0 1px 3px rgba(0,0,0,0.9);">Subscribe to download</div>` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function createWorkflowCardElement(workflow) {
+    const markup = buildWorkflowCardMarkup(workflow).trim();
+    const template = document.createElement('div');
+    template.innerHTML = markup;
+    return template.firstElementChild;
+}
+
+function updateCheckboxForWorkflow(workflowId, workflow) {
+    const checkbox = document.getElementById(`workflow-${workflowId}`);
+    if (!checkbox || workflow?._previewMode) {
+        return;
+    }
+    checkbox.checked = state.selectedWorkflows.has(workflowId);
+    checkbox.onchange = () => {
+        if (checkbox.checked) {
+            state.selectedWorkflows.add(workflowId);
+        } else {
+            state.selectedWorkflows.delete(workflowId);
+        }
+        updateWorkflowInstallButton();
+    };
+}
+
+function insertCardAtPosition(container, card, position) {
+    if (!container || !card) return;
+    const referenceNode = container.children[position] || null;
+    container.insertBefore(card, referenceNode);
+}
+
+function ensureCardPosition(container, card, targetIndex) {
+    if (!container || !card) return;
+    const targetNode = container.children[targetIndex];
+    if (targetNode === card) {
+        return;
+    }
+    container.insertBefore(card, targetNode || null);
+}
+
+function removeStaleWorkflowCards(container, desiredIds) {
+    workflowCardCache.forEach((entry, id) => {
+        if (!desiredIds.has(id)) {
+            if (entry.node && entry.node.parentNode === container) {
+                container.removeChild(entry.node);
+            }
+            workflowCardCache.delete(id);
+            sliderCache.delete(id);
+            workflowMediaHydration.delete(id); // Cancel pending hydration if removed
+        }
+    });
+}
+
+function clearWorkflowCards(container) {
+    workflowCardCache.forEach(entry => {
+        if (entry.node && entry.node.parentNode === container) {
+            container.removeChild(entry.node);
+        }
+    });
+    workflowCardCache.clear();
+    sliderCache.clear();
+}
+
+function updateWorkflowsGrid(container, workflows, onComplete) {
+    workflowRenderToken += 1;
+    const token = workflowRenderToken;
+    const desiredIds = new Set();
+    workflows.forEach(workflow => {
+        const workflowId = resolveWorkflowId(workflow);
+        if (workflowId) {
+            desiredIds.add(workflowId);
+        }
+    });
+
+    removeStaleWorkflowCards(container, desiredIds);
+
+    let index = 0;
+    const processBatch = () => {
+        if (token !== workflowRenderToken) {
+            return;
+        }
+        
+        const hydrationQueue = [];
+        const max = Math.min(index + WORKFLOW_RENDER_BATCH_SIZE, workflows.length);
+        
+        for (; index < max; index++) {
+            const workflow = workflows[index];
+            const workflowId = resolveWorkflowId(workflow);
+            if (!workflowId) {
+                continue;
+            }
+
+            const version = computeWorkflowVersion(workflow);
+            const mediaSignature = computeMediaSignature(workflow);
+            const cached = workflowCardCache.get(workflowId);
+
+            if (cached && cached.version === version && cached.mediaSignature === mediaSignature) {
+                ensureCardPosition(container, cached.node, index);
+                continue;
+            }
+
+            const cardElement = createWorkflowCardElement(workflow);
+            if (!cardElement) {
+                continue;
+            }
+            cardElement.dataset.workflowId = workflowId;
+
+            if (cached && cached.node && cached.node.parentNode === container) {
+                container.replaceChild(cardElement, cached.node);
+            } else {
+                insertCardAtPosition(container, cardElement, index);
+            }
+
+            workflowCardCache.set(workflowId, {
+                node: cardElement,
+                version,
+                mediaSignature
+            });
+
+            if (!workflowHasDisplayableMedia(workflow)) {
+                // Queue hydration for after render to prioritize UI responsiveness
+                hydrationQueue.push({ workflowId, workflow, cardElement });
+            } else {
+                workflowMediaBuffer.set(workflowId, workflow.media.map(item => ({ ...item })));
+            }
+        }
+
+        // Process hydration queue for this batch asynchronously
+        if (hydrationQueue.length > 0) {
+            setTimeout(() => {
+                if (token !== workflowRenderToken) return;
+                hydrationQueue.forEach(({ workflowId, workflow, cardElement }) => {
+                    hydrateWorkflowMedia(workflowId, workflow, cardElement);
+                });
+            }, 10);
+        }
+
+        if (index < workflows.length) {
+            requestAnimationFrame(processBatch);
+        } else if (typeof onComplete === 'function') {
+            onComplete(token);
+        }
+    };
+
+    scheduleWorkflowBatch(processBatch);
+}
+
+function syncWorkflowCheckboxStates(workflows) {
+    workflows.forEach(workflow => {
+        const workflowId = resolveWorkflowId(workflow);
+        updateCheckboxForWorkflow(workflowId, workflow);
+    });
+}
+
+function updateWorkflowUpgradeBanner(inPreviewMode) {
+    const upgradeContainer = document.getElementById('nitra-workflows-upgrade');
+    if (!upgradeContainer) {
+        return;
+    }
+    if (inPreviewMode) {
+        upgradeContainer.innerHTML = `
+            <div style="
+                background: linear-gradient(135deg, rgba(160, 187, 196, 0.08), rgba(209, 78, 114, 0.12));
+                border: 1px solid rgba(160, 187, 196, 0.35);
+                border-radius: 10px;
+                padding: 14px 16px;
+                margin-bottom: 16px;
+                display:flex;
+                align-items:center;
+                justify-content:space-between;
+                gap:12px;
+            ">
+                <div style="color:#f9fafb; font-size:13px;">
+                    <div style="font-weight:600; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px;">
+                        Unlock Full Workflow Downloads
+                    </div>
+                    <div style="opacity:0.9;">
+                        You can preview every workflow here. Activate your Nitra subscription to download and install them directly into ComfyUI.
+                    </div>
+                </div>
+                <button onclick="window.open('${getWebsiteBaseUrl()}/#pricing', '_blank')" 
+                    style="white-space:nowrap; background:#0b0b0b; color:#ffffff; border:1px solid #ffffff; padding:8px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px;">
+                    View Plans
+                </button>
+            </div>
+        `;
+    } else {
+        upgradeContainer.innerHTML = '';
+    }
+}
+
+function setupSelectButtons(filteredWorkflows) {
+    const selectAllWorkflowsBtn = document.getElementById('nitra-select-all-workflows');
+    if (selectAllWorkflowsBtn) {
+        selectAllWorkflowsBtn.onclick = () => {
+            filteredWorkflows
+                .filter(workflow => !workflow._previewMode)
+                .forEach(workflow => {
+                    const workflowId = resolveWorkflowId(workflow);
+                    if (workflowId) {
+                        state.selectedWorkflows.add(workflowId);
+                    }
+                });
+            syncWorkflowCheckboxStates(filteredWorkflows);
+            updateWorkflowInstallButton();
+        };
+    }
+
+    const deselectAllWorkflowsBtn = document.getElementById('nitra-deselect-all-workflows');
+    if (deselectAllWorkflowsBtn) {
+        deselectAllWorkflowsBtn.onclick = () => {
+            if (typeof state.selectedWorkflows.clear === 'function') {
+                state.selectedWorkflows.clear();
+            } else {
+                filteredWorkflows.forEach(workflow => {
+                    const workflowId = resolveWorkflowId(workflow);
+                    if (workflowId) {
+                        state.selectedWorkflows.delete(workflowId);
+                    }
+                });
+            }
+            syncWorkflowCheckboxStates(filteredWorkflows);
+            updateWorkflowInstallButton();
+        };
+    }
+}
+
+function showWorkflowsPlaceholder(container, message) {
+    if (!container) return;
+    clearWorkflowCards(container);
+    container.innerHTML = `<div class="nitra-centered-placeholder">${message}</div>`;
+}
+
+function clearWorkflowsPlaceholder(container) {
+    if (!container) return;
+    const placeholders = container.querySelectorAll('.nitra-centered-placeholder');
+    placeholders.forEach(el => el.remove());
+    
+    // Remove any text nodes that contain the loading message, regardless of other children
+    Array.from(container.childNodes).forEach(node => {
+        if (node.nodeType === Node.TEXT_NODE && node.textContent.includes('Loading workflows')) {
+            container.removeChild(node);
+        }
+    });
+}
 
 function getSliderElements(workflowId) {
     if (sliderCache.has(workflowId)) {
@@ -291,12 +746,13 @@ export function renderWorkflows() {
     
     // Ensure workflowsData is an array
     if (!Array.isArray(state.workflowsData)) {
-        workflowsList.innerHTML = '<div class="nitra-centered-placeholder">Loading workflows...</div>';
         return;
     }
     
     if (state.workflowsData.length === 0) {
-        workflowsList.innerHTML = '<div class="nitra-centered-placeholder">No workflows available</div>';
+        showWorkflowsPlaceholder(workflowsList, 'No workflows available');
+        updateWorkflowUpgradeBanner(false);
+        updateWorkflowInstallButton();
         return;
     }
     
@@ -328,6 +784,13 @@ export function renderWorkflows() {
     
     // Check if any workflows are in preview mode
     const inPreviewMode = filteredWorkflows.some(w => w._previewMode);
+
+    if (!filteredWorkflows.length) {
+        showWorkflowsPlaceholder(workflowsList, 'No workflows match your filters.');
+        updateWorkflowUpgradeBanner(false);
+        updateWorkflowInstallButton();
+        return;
+    }
     
     workflowsList.style.display = 'grid';
     workflowsList.style.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))';
@@ -335,104 +798,15 @@ export function renderWorkflows() {
     workflowsList.style.padding = '12px 0';
     workflowsList.style.margin = '0';
     
-    workflowsList.innerHTML = filteredWorkflows.map(workflow => {
-        const isPreview = workflow._previewMode;
-        const baseStyle = 'cursor: pointer;';
-        const disabledStyle = isPreview ? '' : '';
-        const lockIcon = isPreview ? ' 🔒' : '';
-        const mediaItems = Array.isArray(workflow.media) ? workflow.media.filter(Boolean) : [];
-        const mediaMarkup = renderWorkflowMediaArea(workflow, mediaItems);
-        
-        return `
-            <div class="workflow-card" style="
-                position: relative;
-                display: flex;
-                flex-direction: column;
-                gap: 0;
-                padding: 0;
-                border-radius: 18px;
-                background: #050505;
-                border: 1px solid rgba(255,255,255,0.08);
-                box-shadow: 0 10px 35px rgba(0,0,0,0.55);
-                min-height: 260px;
-                overflow: hidden;
-                transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-                ${baseStyle} ${disabledStyle}
-            " 
-              ${!isPreview ? `onclick="document.getElementById('workflow-${workflow.id}').click();"` : ''}
-              onmouseover="this.style.boxShadow='0 18px 40px rgba(0,0,0,0.7)'; nitraPlayWorkflowVideo('${workflow.id}');"
-              onmouseout="this.style.boxShadow='0 10px 35px rgba(0,0,0,0.55)'; nitraPauseWorkflowVideo('${workflow.id}');"
-            >
-                ${mediaMarkup}
-                <div style="position:relative; z-index:1; display:flex; flex-direction:column; justify-content:space-between; height:100%; padding:16px 16px 14px 16px; pointer-events:none;">
-                    <div style="display:flex; align-items:flex-start; justify-content:flex-start; gap:10px; pointer-events:auto;">
-                        <label style="display:flex; align-items:center; gap:10px; color:#f9fafb; font-weight:600; cursor:pointer;">
-                            <input type="checkbox" id="workflow-${workflow.id}" value="${workflow.id}" ${isPreview ? 'disabled' : 'onclick="event.stopPropagation();"'} style="transform:scale(1.15);">
-                            <span style="text-shadow:0 2px 4px rgba(0,0,0,0.9);">${workflow.name || 'Unnamed Workflow'}${lockIcon}</span>
-                        </label>
-                    </div>
-                    <div style="margin-top:auto; pointer-events:auto;">
-                        <div style="font-size: 0.9em; color: #f9fafb; opacity: 0.92; line-height: 1.6; text-shadow:0 1px 3px rgba(0,0,0,0.9);">
-                    ${workflow.description || 'No description available'}
-                </div>
-                        ${isPreview ? `<div style="font-size: 0.8em; color: #fbbf24; font-weight: 600; margin-top:6px; text-shadow:0 1px 3px rgba(0,0,0,0.9);">Subscribe to download</div>` : ''}
-                    </div>
-            </div>
-        </div>
-        `;
-    }).join('');
-    
-    attachWorkflowMediaCompareListeners();
-
-    // Update upgrade banner area (above gallery)
-    const upgradeContainer = document.getElementById('nitra-workflows-upgrade');
-    if (upgradeContainer) {
-    if (inPreviewMode) {
-            upgradeContainer.innerHTML = `
-                <div style="
-                    background: linear-gradient(135deg, rgba(160, 187, 196, 0.08), rgba(209, 78, 114, 0.12));
-                    border: 1px solid rgba(160, 187, 196, 0.35);
-                    border-radius: 10px;
-                    padding: 14px 16px;
-                    margin-bottom: 16px;
-                    display:flex;
-                    align-items:center;
-                    justify-content:space-between;
-                    gap:12px;
-                ">
-                    <div style="color:#f9fafb; font-size:13px;">
-                        <div style="font-weight:600; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px;">
-                            Unlock Full Workflow Downloads
-                        </div>
-                        <div style="opacity:0.9;">
-                            You can preview every workflow here. Activate your Nitra subscription to download and install them directly into ComfyUI.
-            </div>
-            </div>
-            <button onclick="window.open('${getWebsiteBaseUrl()}/#pricing', '_blank')" 
-                        style="white-space:nowrap; background:#0b0b0b; color:#ffffff; border:1px solid #ffffff; padding:8px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px;">
-                        View Plans
-            </button>
-                </div>
-        `;
-        } else {
-            upgradeContainer.innerHTML = '';
+    clearWorkflowsPlaceholder(workflowsList);
+    updateWorkflowsGrid(workflowsList, filteredWorkflows, (token) => {
+        if (token !== workflowRenderToken) {
+            return;
         }
-    }
-    
-    // Add event listeners to checkboxes (only for non-preview items)
-    filteredWorkflows.forEach(workflow => {
-        const checkbox = document.getElementById(`workflow-${workflow.id}`);
-        if (checkbox && !workflow._previewMode) {
-            checkbox.checked = state.selectedWorkflows.has(workflow.id);
-            checkbox.onchange = () => {
-                if (checkbox.checked) {
-                    state.selectedWorkflows.add(workflow.id);
-                } else {
-                    state.selectedWorkflows.delete(workflow.id);
-                }
-                updateWorkflowInstallButton();
-            };
-        }
+        attachWorkflowMediaCompareListeners();
+        syncWorkflowCheckboxStates(filteredWorkflows);
+        updateWorkflowUpgradeBanner(inPreviewMode);
+        updateWorkflowInstallButton();
     });
     
     // Add search functionality
@@ -444,29 +818,112 @@ export function renderWorkflows() {
         };
     }
     
-    // Add select all functionality
-    const selectAllWorkflowsBtn = document.getElementById('nitra-select-all-workflows');
-    if (selectAllWorkflowsBtn) {
-        selectAllWorkflowsBtn.onclick = () => {
-            filteredWorkflows
-                .filter(workflow => !workflow._previewMode)
-                .forEach(workflow => state.selectedWorkflows.add(workflow.id));
-            renderWorkflows();
-            updateWorkflowInstallButton();
-        };
+    setupSelectButtons(filteredWorkflows);
+    restoreBufferedMedia();
+}
+
+async function hydrateWorkflowMedia(workflowId, workflow, cardElement) {
+    if (!workflowId || workflowMediaHydration.has(workflowId)) {
+        return;
     }
-    
-    // Add deselect all functionality
-    const deselectAllWorkflowsBtn = document.getElementById('nitra-deselect-all-workflows');
-    if (deselectAllWorkflowsBtn) {
-        deselectAllWorkflowsBtn.onclick = () => {
-            state.selectedWorkflows.clear();
-            renderWorkflows(); // Re-render to update checkboxes
-            updateWorkflowInstallButton();
-        };
+    const hydrationPromise = (async () => {
+        try {
+            // console.debug('Nitra: Starting hydration for workflow', workflowId);
+            // Force refresh from server to get fresh presigned URLs
+            const details = await fetchWorkflowDetails(workflowId, { refresh: true });
+            
+            if (!details) {
+                // console.warn('Nitra: Hydration failed - No details returned for', workflowId);
+                return;
+            }
+
+            // console.debug('Nitra: Fetched details for hydration', workflowId, details.media);
+
+            if (!workflowHasDisplayableMedia(details)) {
+                // console.warn('Nitra: Hydrated details still have no displayable media for', workflowId);
+                return;
+            }
+
+            const updatedWorkflow = {
+                ...workflow,
+                ...details,
+            };
+
+            const newCard = createWorkflowCardElement(updatedWorkflow);
+            if (!newCard) {
+                return;
+            }
+
+            // If the element was removed from DOM in the meantime, don't re-insert unless it's just disconnected (e.g. tab switch)
+            // But we must update the cache node reference so future renders use the new card
+            if (cardElement && cardElement.parentNode) {
+                cardElement.replaceWith(newCard);
+            } else if (cardElement) {
+                // If old card is detached, we still want to update the cache so next time it's attached it has media
+                // The grid updater will pull from cache
+            }
+
+            // Update the cache immediately so next render cycle picks up the full card
+            workflowCardCache.set(workflowId, {
+                node: newCard,
+                version: computeWorkflowVersion(updatedWorkflow),
+                mediaSignature: computeMediaSignature(updatedWorkflow),
+            });
+
+            const list = state.workflowsData;
+            if (Array.isArray(list)) {
+                const idx = list.findIndex(item => resolveWorkflowId(item) === workflowId);
+                if (idx >= 0) {
+                    // Update state.workflowsData in place to persist the hydration
+                    state.workflowsData[idx] = {
+                        ...list[idx],
+                        ...details,
+                    };
+                    // Ensure the main state store is updated so if a re-render happens from scratch it uses this
+                    state.setWorkflowsData(state.workflowsData, { mode: state.getWorkflowsCacheInfo().mode });
+                }
+            }
+            workflowMediaBuffer.set(workflowId, updatedWorkflow.media.map(item => ({ ...item })));
+
+            attachWorkflowMediaCompareListeners();
+            updateCheckboxForWorkflow(workflowId, updatedWorkflow);
+        } catch (error) {
+            console.warn('Nitra: Failed to hydrate workflow media', workflowId, error);
+        } finally {
+            workflowMediaHydration.delete(workflowId);
+        }
+    })();
+
+    workflowMediaHydration.set(workflowId, hydrationPromise);
+}
+
+function restoreBufferedMedia() {
+    if (!Array.isArray(state.workflowsData)) {
+        return;
     }
-    
-    updateWorkflowInstallButton();
+    state.workflowsData.forEach((workflow, index) => {
+        const workflowId = resolveWorkflowId(workflow);
+        if (!workflowId) {
+            return;
+        }
+        if (workflowHasDisplayableMedia(workflow)) {
+            return;
+        }
+        const bufferedMedia = workflowMediaBuffer.get(workflowId);
+        if (!bufferedMedia || !bufferedMedia.length) {
+            return;
+        }
+        const updatedWorkflow = {
+            ...workflow,
+            media: bufferedMedia.map(item => ({ ...item })),
+        };
+        state.workflowsData[index] = updatedWorkflow;
+        const cacheEntry = workflowCardCache.get(workflowId);
+        if (cacheEntry) {
+            cacheEntry.version = computeWorkflowVersion(updatedWorkflow);
+            cacheEntry.mediaSignature = computeMediaSignature(updatedWorkflow);
+        }
+    });
 }
 
 

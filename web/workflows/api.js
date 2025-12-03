@@ -148,19 +148,23 @@ function extractDynamoValue(value) {
     return value;
 }
 
-async function fetchWorkflowDetails(workflowId) {
+export async function fetchWorkflowDetails(workflowId, options = {}) {
+    const { refresh = false } = options;
+
     // Return cached workflow if we already have dependencies for it
-    if (workflowDetailsCache.has(workflowId)) {
+    if (!refresh && workflowDetailsCache.has(workflowId)) {
         return workflowDetailsCache.get(workflowId);
     }
 
     // Try to find it in the workflows list loaded earlier
-    const fromState = Array.isArray(state.workflowsData)
-        ? state.workflowsData.find(w => w && w.id === workflowId && w.dependencies)
-        : null;
-    if (fromState) {
-        workflowDetailsCache.set(workflowId, fromState);
-        return fromState;
+    if (!refresh) {
+        const fromState = Array.isArray(state.workflowsData)
+            ? state.workflowsData.find(w => w && w.id === workflowId && w.dependencies)
+            : null;
+        if (fromState) {
+            workflowDetailsCache.set(workflowId, fromState);
+            return fromState;
+        }
     }
 
     // Fallback to fetching from the local server
@@ -220,10 +224,6 @@ export async function loadWorkflows(options = {}) {
     const { backgroundRefresh = true, force = false } = options;
     const cacheInfo = typeof state.getWorkflowsCacheInfo === 'function' ? state.getWorkflowsCacheInfo() : null;
     const hasCached = cacheInfo && Array.isArray(cacheInfo.data) && cacheInfo.data.length > 0;
-    const workflowsList = document.getElementById('nitra-workflows-list');
-    if (workflowsList && !hasCached) {
-        workflowsList.innerHTML = '<div class="nitra-centered-placeholder">Loading workflows...</div>';
-    }
 
     const hasSubscription =
         state.currentLicenseStatus &&
