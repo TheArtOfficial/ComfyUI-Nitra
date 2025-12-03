@@ -750,7 +750,8 @@ export function renderWorkflows() {
     }
     
     if (state.workflowsData.length === 0) {
-        showWorkflowsPlaceholder(workflowsList, 'No workflows available');
+        // showWorkflowsPlaceholder(workflowsList, 'No workflows available');
+        if (workflowsList) workflowsList.innerHTML = '';
         updateWorkflowUpgradeBanner(false);
         updateWorkflowInstallButton();
         return;

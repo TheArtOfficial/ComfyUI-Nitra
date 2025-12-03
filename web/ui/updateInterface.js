@@ -578,9 +578,7 @@ export function createUpdateInterface() {
                             background: #1a1a1a;
                             min-height: 0;
                         ">
-                            <div style="text-align: center; padding: 20px; color: var(--comfy-input-text);">
-                                Loading workflows...
-                            </div>
+                            <!-- Content populated dynamically -->
                         </div>
                             
                         <!-- Bottom Section (HF Token + Install Button) -->
