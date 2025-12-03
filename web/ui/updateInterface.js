@@ -1065,8 +1065,14 @@ export function createUpdateInterface() {
         };
     });
     
-    // Initialize tab display with last selected tab when available
-    showTab(lastActiveTab);
+    // Initialize tab display with last selected tab when available.
+    // Defer until the panel is attached so cached content (e.g., workflows) can render immediately.
+    const initiateTabDisplay = () => showTab(lastActiveTab);
+    if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(initiateTabDisplay);
+    } else {
+        setTimeout(initiateTabDisplay, 0);
+    }
     
     // Logout button click handler
     const logoutBtn = updatePanel.querySelector('#nitra-logout-btn');
