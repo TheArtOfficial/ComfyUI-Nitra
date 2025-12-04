@@ -743,6 +743,17 @@ export function renderWorkflows() {
     if (typeof state.hydrateWorkflowsFromCache === 'function') {
         state.hydrateWorkflowsFromCache();
     }
+
+    // Check for license/cache mismatch to prevent showing locked content to paid users
+    if (state.currentLicenseStatus) {
+        const hasSubscription = state.currentLicenseStatus.has_paid_subscription || state.currentLicenseStatus.status === 'paid';
+        const cacheInfo = typeof state.getWorkflowsCacheInfo === 'function' ? state.getWorkflowsCacheInfo() : null;
+        
+        if (hasSubscription && cacheInfo && cacheInfo.mode === 'preview') {
+            if (workflowsList) workflowsList.innerHTML = '';
+            return;
+        }
+    }
     
     // Ensure workflowsData is an array
     if (!Array.isArray(state.workflowsData)) {

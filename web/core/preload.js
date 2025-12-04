@@ -1,32 +1,13 @@
 import * as state from './state.js';
 import { loadWorkflows } from '../workflows/api.js';
 import { loadModels } from '../models/api.js';
-import { fetchLicenseStatus } from '../license/status.js';
+// import { fetchLicenseStatus } from '../license/status.js';
 
 let preloadPromise = null;
 
 export function ensureDataPrefetch() {
-    if (!state.isAuthenticated || !state.currentUser?.apiToken) {
-        return null;
-    }
-    if (preloadPromise) {
-        return preloadPromise;
-    }
-    preloadPromise = (async () => {
-        await fetchLicenseStatus().catch((error) => {
-            console.warn('Nitra: Background license load skipped', error);
-        });
-        await Promise.all([
-            loadWorkflows({ backgroundRefresh: true }).catch((error) => {
-                console.warn('Nitra: Background workflow load skipped', error);
-            }),
-            loadModels({ backgroundRefresh: true }).catch((error) => {
-                console.warn('Nitra: Background model load skipped', error);
-            }),
-        ]);
-    })().finally(() => {
-        preloadPromise = null;
-    });
-    return preloadPromise;
+    // Data prefetching is now handled by the UI initialization to ensure
+    // license status is known before fetching content (avoiding locked/unlocked race conditions).
+    return Promise.resolve();
 }
 

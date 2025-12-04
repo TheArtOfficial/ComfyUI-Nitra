@@ -4,7 +4,7 @@
 import * as state from '../core/state.js';
 import { handleWebsiteCallbackFromUrl } from '../auth/oauth.js';
 import { checkWebsiteSession } from '../auth/session.js';
-import { fetchLicenseStatus } from '../license/status.js';
+// import { fetchLicenseStatus } from '../license/status.js';
 import { createSplashDialog, updateDialogForAuthenticated } from './dialog.js';
 import { createLoginForm } from './loginForm.js';
 import { createUpdateInterface } from './updateInterface.js';
@@ -98,12 +98,9 @@ async function populateDialogBody(body, shouldFetchLicense) {
 
         ensureDataPrefetch();
 
-        if (shouldFetchLicense) {
-            fetchLicenseStatus().catch((err) => {
-                console.warn("Nitra: License status fetch failed:", err);
-            });
-        }
-
+        // License check is now handled within createUpdateInterface to ensure correct UI state
+        // before rendering tabs.
+        
         body.appendChild(createUpdateInterface());
     } else {
         body.style.cssText = `

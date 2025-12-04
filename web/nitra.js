@@ -8,7 +8,8 @@ import { loginWithWebsite, handleWebsiteCallbackFromUrl, handlePopupAuthResult }
 import { checkWebsiteSession, restoreSessionOnLoad, ensureFreshAccessToken } from './auth/session.js';
 import { processWebsiteAuthSuccess, processPopupAuthSuccess } from './auth/callbacks.js';
 import { logoutWebsite } from './auth/logout.js';
-import { fetchLicenseStatus, formatLicenseStatus } from './license/status.js';
+// import { fetchLicenseStatus, formatLicenseStatus } from './license/status.js';
+import { formatLicenseStatus } from './license/status.js';
 import { updateLicenseStatusDisplay } from './license/ui.js';
 import { loadWorkflows, getExistingModels, calculateTotalWorkflowSize, checkWorkflowsForHFTokenRequirement } from './workflows/api.js';
 import { renderWorkflows } from './workflows/ui.js';

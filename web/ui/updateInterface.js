@@ -3,7 +3,7 @@
 
 import * as state from '../core/state.js';
 import { getWebsiteBaseUrl } from '../core/config.js';
-import { formatLicenseStatus, initializeLicenseStatus } from '../license/status.js';
+import { formatLicenseStatus, fetchLicenseStatus } from '../license/status.js';
 import { logoutWebsite } from '../auth/logout.js';
 import { updateListHeights } from './layout.js';
 import { loadWorkflows, checkWorkflowsForHFTokenRequirement } from '../workflows/api.js';
@@ -25,7 +25,8 @@ let lastActiveTab = 'optimizer';
 
 export function createUpdateInterface() {
     const updatePanel = document.createElement("div");
-    initializeLicenseStatus().catch((error) => {
+    // Use fetchLicenseStatus directly to avoid loading stale cache first
+    const licenseCheckPromise = fetchLicenseStatus().catch((error) => {
         console.warn('Nitra: Failed to initialize license status', error);
     });
 
@@ -375,6 +376,7 @@ export function createUpdateInterface() {
                     font-size: 0.9em;
                     text-transform: uppercase;
                     letter-spacing: 0.04em;
+                    display: none;
                 "></div>
                 <div id="nitra-device-warning-subtext" style="
                     display: none;
@@ -411,12 +413,12 @@ export function createUpdateInterface() {
             
                 <!-- Tab Navigation -->
                 <nav class="p-tabview-nav" style="flex: 1; display: flex; flex-direction: column;">
-                    <button id="nitra-tab-optimizer" class="nitra-tab nitra-tab-active" role="tab" aria-selected="true" aria-controls="nitra-optimizer-content">ComfyUI Optimizer</button>
-                    <button id="nitra-tab-workflows" class="nitra-tab" role="tab" aria-selected="false" aria-controls="nitra-workflows-content">Workflows</button>
-                    <button id="nitra-tab-models" class="nitra-tab" role="tab" aria-selected="false" aria-controls="nitra-models-content">Models</button>
+                    <button id="nitra-tab-optimizer" class="nitra-tab ${lastActiveTab === 'optimizer' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'optimizer'}" aria-controls="nitra-optimizer-content">ComfyUI Optimizer</button>
+                    <button id="nitra-tab-workflows" class="nitra-tab ${lastActiveTab === 'workflows' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'workflows'}" aria-controls="nitra-workflows-content">Workflows</button>
+                    <button id="nitra-tab-models" class="nitra-tab ${lastActiveTab === 'models' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'models'}" aria-controls="nitra-models-content">Models</button>
                     <button id="nitra-tab-install-missing" class="nitra-tab" role="tab" disabled style="opacity: 0.5; cursor: not-allowed;">Install Missing (coming soon!)</button>
-                    <button id="nitra-tab-user-config" class="nitra-tab" role="tab" aria-selected="false" aria-controls="nitra-user-config-content">User Configuration</button>
-                    <button id="nitra-tab-help" class="nitra-tab" role="tab" aria-selected="false" aria-controls="nitra-help-content">How can we help?</button>
+                    <button id="nitra-tab-user-config" class="nitra-tab ${lastActiveTab === 'user-config' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'user-config'}" aria-controls="nitra-user-config-content">User Configuration</button>
+                    <button id="nitra-tab-help" class="nitra-tab ${lastActiveTab === 'help' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'help'}" aria-controls="nitra-help-content">How can we help?</button>
                     <button id="nitra-logout-btn" class="nitra-tab" role="tab">Logout</button>
                 </nav>
             </aside>
@@ -424,7 +426,7 @@ export function createUpdateInterface() {
             <!-- Tab Panels directly in app-container -->
             <div class="p-tabpanels settings-tab-panels" role="presentation" data-pc-name="tabpanels" style="flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden; background: #0b0b0b;">
                     <!-- ComfyUI Optimizer Tab Panel -->
-                    <div class="p-tabpanel p-tabpanel-active optimizer-panel" id="nitra-optimizer-content" tabindex="0" role="tabpanel" aria-labelledby="nitra-tab-optimizer" data-pc-name="tabpanel" data-p-active="true" style="flex: 1; display: flex; flex-direction: column; height: 100%; overflow: auto; padding: 36px; justify-content: flex-start; align-items: stretch;">
+                    <div class="p-tabpanel ${lastActiveTab === 'optimizer' ? 'p-tabpanel-active' : ''} optimizer-panel" id="nitra-optimizer-content" tabindex="0" role="tabpanel" aria-labelledby="nitra-tab-optimizer" data-pc-name="tabpanel" data-p-active="${lastActiveTab === 'optimizer'}" style="flex: 1; display: ${lastActiveTab === 'optimizer' ? 'flex' : 'none'}; flex-direction: column; height: 100%; overflow: auto; padding: 36px; justify-content: flex-start; align-items: stretch;">
                         <h3 class="nitra-section-header" style="margin-top: 0; margin-bottom: 16px;">ComfyUI Optimizer</h3>
                         <!-- Dynamic Comfy Config Buttons Container -->
                         <div id="nitra-comfy-configs-container" style="
@@ -483,14 +485,14 @@ export function createUpdateInterface() {
                             font-size: 1.1em;
                                     height: 100%;
                         ">
- Refresh Page
+                            Refresh Page
                         </button>
                             </div>
                         </div>
                     </div>
                     
                     <!-- Workflows Tab Panel -->
-                    <div class="p-tabpanel workflows-panel" id="nitra-workflows-content" tabindex="0" role="tabpanel" aria-labelledby="nitra-tab-workflows" data-pc-name="tabpanel" data-p-active="false" style="flex: 1; display: none; flex-direction: column; height: 100%; overflow: hidden; padding: 36px;">
+                    <div class="p-tabpanel ${lastActiveTab === 'workflows' ? 'p-tabpanel-active' : ''} workflows-panel" id="nitra-workflows-content" tabindex="0" role="tabpanel" aria-labelledby="nitra-tab-workflows" data-pc-name="tabpanel" data-p-active="${lastActiveTab === 'workflows'}" style="flex: 1; display: ${lastActiveTab === 'workflows' ? 'flex' : 'none'}; flex-direction: column; height: 100%; overflow: hidden; padding: 36px;">
                         <!-- Search & Category Filter -->
                         <div style="margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
                             <input type="text" id="nitra-workflow-search" class="nitra-input" placeholder=" Search workflows by name, description, or tag..." style="
@@ -981,26 +983,43 @@ export function createUpdateInterface() {
         });
 
         if (normalizedTab === 'workflows') {
-            if (typeof renderWorkflows === 'function') {
-                renderWorkflows();
-            }
-            if (typeof loadWorkflows === 'function') {
-                loadWorkflows({ backgroundRefresh: true }).then(success => {
-                    if (success && typeof renderWorkflows === 'function') {
-                        renderWorkflows();
-                    }
-                });
+            const doRender = () => {
+                if (typeof renderWorkflows === 'function') {
+                    renderWorkflows();
+                }
+                if (typeof loadWorkflows === 'function') {
+                    loadWorkflows({ backgroundRefresh: true }).then(success => {
+                        if (success && typeof renderWorkflows === 'function') {
+                            renderWorkflows();
+                        }
+                    });
+                }
+            };
+
+            // Only wait for license check if it's the very first load
+            if (!deviceSectionInitialized && licenseCheckPromise && typeof licenseCheckPromise.then === 'function') {
+                licenseCheckPromise.finally(doRender);
+            } else {
+                doRender();
             }
         } else if (normalizedTab === 'models') {
-            if (typeof renderModels === 'function') {
-                renderModels();
-            }
-            if (typeof loadModels === 'function') {
-                loadModels({ backgroundRefresh: true }).then(success => {
-                    if (success && typeof renderModels === 'function') {
-                        renderModels();
-                    }
-                });
+            const doRender = () => {
+                if (typeof renderModels === 'function') {
+                    renderModels();
+                }
+                if (typeof loadModels === 'function') {
+                    loadModels({ backgroundRefresh: true }).then(success => {
+                        if (success && typeof renderModels === 'function') {
+                            renderModels();
+                        }
+                    });
+                }
+            };
+            
+            if (!deviceSectionInitialized && licenseCheckPromise && typeof licenseCheckPromise.then === 'function') {
+                licenseCheckPromise.finally(doRender);
+            } else {
+                doRender();
             }
         } else if (normalizedTab === 'user-config') {
             setupPasswordToggle();
@@ -1064,8 +1083,26 @@ export function createUpdateInterface() {
     });
     
     // Initialize tab display with last selected tab when available.
-    // Defer until the panel is attached so cached content (e.g., workflows) can render immediately.
-    const initiateTabDisplay = () => showTab(lastActiveTab);
+    const initiateTabDisplay = () => {
+        // Initially hide the panels to avoid flash of locked content
+        const workflowList = updatePanel.querySelector('#nitra-workflows-list');
+        const modelList = updatePanel.querySelector('#nitra-models-list');
+        if (workflowList) workflowList.style.visibility = 'hidden';
+        if (modelList) modelList.style.visibility = 'hidden';
+
+        // Wait for the initial license check before showing any tab content.
+        licenseCheckPromise.finally(() => {
+            deviceSectionInitialized = true;
+            showTab(lastActiveTab);
+            
+            // Restore visibility after license status is applied and content rendered
+            setTimeout(() => {
+                if (workflowList) workflowList.style.visibility = 'visible';
+                if (modelList) modelList.style.visibility = 'visible';
+            }, 50);
+        });
+    };
+
     if (typeof requestAnimationFrame === 'function') {
         requestAnimationFrame(initiateTabDisplay);
     } else {
