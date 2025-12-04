@@ -25,6 +25,43 @@ const workflowMediaBuffer = new Map();
 let workflowRenderToken = 0;
 let workflowIdFallbackCounter = 0;
 
+// Hydration queue to limit concurrent requests
+const pendingHydrationQueue = [];
+let activeHydrationRequests = 0;
+const MAX_CONCURRENT_HYDRATIONS = 4;
+
+function processHydrationQueue() {
+    if (activeHydrationRequests >= MAX_CONCURRENT_HYDRATIONS || pendingHydrationQueue.length === 0) {
+        return;
+    }
+
+    const task = pendingHydrationQueue.shift();
+    activeHydrationRequests++;
+
+    task().finally(() => {
+        activeHydrationRequests--;
+        processHydrationQueue();
+    });
+}
+
+const hydrationObserver = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const card = entry.target;
+            const workflowId = card.dataset.workflowId;
+            if (workflowId) {
+                const workflow = state.workflowsData.find(w => resolveWorkflowId(w) === workflowId);
+                if (workflow && !workflowHasDisplayableMedia(workflow)) {
+                    // Queue the hydration instead of firing immediately
+                    pendingHydrationQueue.push(() => hydrateWorkflowMedia(workflowId, workflow, card));
+                    processHydrationQueue();
+                }
+            }
+            hydrationObserver.unobserve(card);
+        }
+    });
+}, { rootMargin: '200px' }) : null;
+
 function scheduleWorkflowBatch(callback) {
     if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
         window.requestAnimationFrame(callback);
@@ -421,7 +458,6 @@ function updateWorkflowsGrid(container, workflows, onComplete) {
             return;
         }
         
-        const hydrationQueue = [];
         const max = Math.min(index + WORKFLOW_RENDER_BATCH_SIZE, workflows.length);
         
         for (; index < max; index++) {
@@ -437,6 +473,10 @@ function updateWorkflowsGrid(container, workflows, onComplete) {
 
             if (cached && cached.version === version && cached.mediaSignature === mediaSignature) {
                 ensureCardPosition(container, cached.node, index);
+                // Even if cached, check if we need to observe for hydration (if it was somehow reset or missed)
+                if (!workflowHasDisplayableMedia(workflow) && hydrationObserver) {
+                    hydrationObserver.observe(cached.node);
+                }
                 continue;
             }
 
@@ -459,25 +499,20 @@ function updateWorkflowsGrid(container, workflows, onComplete) {
             });
 
             if (!workflowHasDisplayableMedia(workflow)) {
-                // Queue hydration for after render to prioritize UI responsiveness
-                hydrationQueue.push({ workflowId, workflow, cardElement });
+                // Use IntersectionObserver for lazy hydration
+                if (hydrationObserver) {
+                    hydrationObserver.observe(cardElement);
+                } else {
+                    // Fallback if no Observer
+                    hydrateWorkflowMedia(workflowId, workflow, cardElement);
+                }
             } else {
                 workflowMediaBuffer.set(workflowId, workflow.media.map(item => ({ ...item })));
             }
         }
 
-        // Process hydration queue for this batch asynchronously
-        if (hydrationQueue.length > 0) {
-            setTimeout(() => {
-                if (token !== workflowRenderToken) return;
-                hydrationQueue.forEach(({ workflowId, workflow, cardElement }) => {
-                    hydrateWorkflowMedia(workflowId, workflow, cardElement);
-                });
-            }, 10);
-        }
-
         if (index < workflows.length) {
-            requestAnimationFrame(processBatch);
+            scheduleWorkflowBatch(processBatch);
         } else if (typeof onComplete === 'function') {
             onComplete(token);
         }
