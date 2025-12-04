@@ -246,7 +246,6 @@ function renderMediaElement(mediaItem, workflowId, options = {}) {
                 data-workflow-video="${workflowId}"
                 src="${source}"
                 muted
-                autoplay
                 playsinline
                 loop
             ></video>
