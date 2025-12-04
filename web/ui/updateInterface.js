@@ -3,7 +3,7 @@
 
 import * as state from '../core/state.js';
 import { getWebsiteBaseUrl } from '../core/config.js';
-import { formatLicenseStatus, fetchLicenseStatus } from '../license/status.js';
+import { formatLicenseStatus, fetchLicenseStatus, initializeLicenseStatus } from '../license/status.js';
 import { logoutWebsite } from '../auth/logout.js';
 import { updateListHeights } from './layout.js';
 import { loadWorkflows, checkWorkflowsForHFTokenRequirement } from '../workflows/api.js';
@@ -25,8 +25,8 @@ let lastActiveTab = 'optimizer';
 
 export function createUpdateInterface() {
     const updatePanel = document.createElement("div");
-    // Use fetchLicenseStatus directly to avoid loading stale cache first
-    const licenseCheckPromise = fetchLicenseStatus().catch((error) => {
+    // Initialize license status (restores cache immediately, fetches fresh in background)
+    const licenseCheckPromise = initializeLicenseStatus().catch((error) => {
         console.warn('Nitra: Failed to initialize license status', error);
     });
 
@@ -1090,17 +1090,27 @@ export function createUpdateInterface() {
         if (workflowList) workflowList.style.visibility = 'hidden';
         if (modelList) modelList.style.visibility = 'hidden';
 
-        // Wait for the initial license check before showing any tab content.
-        licenseCheckPromise.finally(() => {
+        const proceedWithRender = () => {
             deviceSectionInitialized = true;
             showTab(lastActiveTab);
             
-            // Restore visibility after license status is applied and content rendered
+            // Restore visibility after content rendered
             setTimeout(() => {
                 if (workflowList) workflowList.style.visibility = 'visible';
                 if (modelList) modelList.style.visibility = 'visible';
             }, 50);
-        });
+        };
+
+        // If we have a cached "Paid" status, render immediately to avoid delay.
+        // If status is missing or "Free", wait for network check to prevent "locked flash" for paid users.
+        const cachedStatus = state.currentLicenseStatus;
+        const isPaidCached = cachedStatus && (cachedStatus.has_paid_subscription || cachedStatus.status === 'paid');
+
+        if (isPaidCached) {
+            proceedWithRender();
+        } else {
+            licenseCheckPromise.finally(proceedWithRender);
+        }
     };
 
     if (typeof requestAnimationFrame === 'function') {
