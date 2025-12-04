@@ -494,7 +494,7 @@ export function createUpdateInterface() {
                     <!-- Workflows Tab Panel -->
                     <div class="p-tabpanel ${lastActiveTab === 'workflows' ? 'p-tabpanel-active' : ''} workflows-panel" id="nitra-workflows-content" tabindex="0" role="tabpanel" aria-labelledby="nitra-tab-workflows" data-pc-name="tabpanel" data-p-active="${lastActiveTab === 'workflows'}" style="flex: 1; display: ${lastActiveTab === 'workflows' ? 'flex' : 'none'}; flex-direction: column; height: 100%; overflow: hidden; padding: 36px;">
                         <!-- Search & Category Filter -->
-                        <div style="margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
+                        <div style="margin-bottom: 8px; display: flex; gap: 12px; flex-wrap: wrap;">
                             <input type="text" id="nitra-workflow-search" class="nitra-input" placeholder=" Search workflows by name, description, or tag..." style="
                                 padding: 12px 16px;
                                 flex: 1;
@@ -518,57 +518,70 @@ export function createUpdateInterface() {
                                 <option value="all">All Categories</option>
                             </select>
                         </div>
+                        <div style="margin-bottom: 16px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+                            <select id="nitra-workflow-sort" style="
+                                padding: 10px 14px;
+                                border-radius: 8px;
+                                border: 1px solid #ffffff;
+                                background: #000000;
+                                color: #ffffff;
+                                font-size: 0.9em;
+                                min-width: 220px;
+                                max-width: 100%;
+                            ">
+                                <option value="name-asc">Sort: Name (A-Z)</option>
+                                <option value="date-desc">Sort: Date Added (Newest)</option>
+                            </select>
+                            <div style="display: flex; gap: 8px;">
+                                <button id="nitra-select-all-workflows" style="
+                                    padding: 10px 16px;
+                                    background: transparent;
+                                    border: 1px solid #ffffff;
+                                    border-radius: 8px;
+                                    color: #ffffff;
+                                    font-size: 0.85em;
+                                    font-weight: 600;
+                                    cursor: pointer;
+                                    transition: all 0.2s ease;
+                                    opacity: 0.85;
+                                    letter-spacing: 0.04em;
+                                    text-transform: uppercase;
+                                " onmouseover="
+                                    this.style.opacity='1';
+                                    this.style.background='rgba(255,255,255,0.1)';
+                                " onmouseout="
+                                    this.style.opacity='0.85';
+                                    this.style.background='transparent';
+                                ">
+                                    ✓ Select All
+                                </button>
+                                <button id="nitra-deselect-all-workflows" style="
+                                    padding: 10px 16px;
+                                    background: transparent;
+                                    border: 1px solid #ffffff;
+                                    border-radius: 8px;
+                                    color: #ffffff;
+                                    font-size: 0.85em;
+                                    font-weight: 600;
+                                    cursor: pointer;
+                                    transition: all 0.2s ease;
+                                    opacity: 0.85;
+                                    letter-spacing: 0.04em;
+                                    text-transform: uppercase;
+                                " onmouseover="
+                                    this.style.opacity='1';
+                                    this.style.background='rgba(255,255,255,0.1)';
+                                " onmouseout="
+                                    this.style.opacity='0.85';
+                                    this.style.background='transparent';
+                                ">
+                                    ✕ Deselect All
+                                </button>
+                            </div>
+                        </div>
 
                         <!-- Upgrade banner placeholder (controlled by workflows/ui.js) -->
                         <div id="nitra-workflows-upgrade"></div>
-                        
-                        <!-- Deselect All Button -->
-                        <div style="margin-bottom: 8px; display: flex; justify-content: flex-end; gap: 8px;">
-                            <button id="nitra-select-all-workflows" style="
-                                padding: 6px 12px;
-                                background: transparent;
-                                border: 1px solid #ffffff;
-                                border-radius: 4px;
-                                color: #ffffff;
-                                font-size: 11px;
-                                font-weight: 500;
-                                cursor: pointer;
-                                transition: all 0.2s ease;
-                                opacity: 0.8;
-                            " onmouseover="
-                                this.style.opacity='1';
-                                this.style.background='rgba(255,255,255,0.1)';
-                                this.style.borderColor='#ffffff';
-                            " onmouseout="
-                                this.style.opacity='0.8';
-                                this.style.background='transparent';
-                                this.style.borderColor='#ffffff';
-                            ">
-                                ✓ Select All
-                            </button>
-                            <button id="nitra-deselect-all-workflows" style="
-                                padding: 6px 12px;
-                                background: transparent;
-                                border: 1px solid #ffffff;
-                                border-radius: 4px;
-                                color: #ffffff;
-                                font-size: 11px;
-                                font-weight: 500;
-                                cursor: pointer;
-                                transition: all 0.2s ease;
-                                opacity: 0.8;
-                            " onmouseover="
-                                this.style.opacity='1';
-                                this.style.background='rgba(255,255,255,0.1)';
-                                this.style.borderColor='#ffffff';
-                            " onmouseout="
-                                this.style.opacity='0.8';
-                                this.style.background='transparent';
-                                this.style.borderColor='#ffffff';
-                            ">
-                                ✕ Deselect All
-                            </button>
-                        </div>
                         
                         <!-- Workflows List Container -->
                         <div id="nitra-workflows-list" style="
@@ -633,7 +646,7 @@ export function createUpdateInterface() {
                     <!-- Models Tab Panel -->
                     <div class="p-tabpanel models-panel" id="nitra-models-content" tabindex="0" role="tabpanel" aria-labelledby="nitra-tab-models" data-pc-name="tabpanel" data-p-active="false" style="flex: 1; display: none; flex-direction: column; height: 100%; overflow: hidden; padding: 36px;">
                         <!-- Search + Install Folder Filter -->
-                        <div style="margin-bottom: 20px; display: flex; gap: 12px; flex-wrap: wrap;">
+                        <div style="margin-bottom: 8px; display: flex; gap: 12px; flex-wrap: wrap;">
                             <input type="text" id="nitra-model-search" class="nitra-input" placeholder=" Search models by name, description, or tag..." style="
                                 flex: 1;
                                 min-width: 220px;
@@ -675,49 +688,48 @@ export function createUpdateInterface() {
                             </select>
                         </div>
                         
-                        <!-- Deselect All Button -->
-                        <div style="margin-bottom: 8px; display: flex; justify-content: flex-end; gap: 8px;">
+                        <div style="margin-bottom: 16px; display: flex; justify-content: flex-end; gap: 8px;">
                             <button id="nitra-select-all-models" style="
-                                padding: 6px 12px;
+                                padding: 10px 16px;
                                 background: transparent;
                                 border: 1px solid #ffffff;
-                                border-radius: 4px;
+                                border-radius: 8px;
                                 color: #ffffff;
-                                font-size: 11px;
-                                font-weight: 500;
+                                font-size: 0.85em;
+                                font-weight: 600;
                                 cursor: pointer;
                                 transition: all 0.2s ease;
-                                opacity: 0.8;
+                                opacity: 0.85;
+                                letter-spacing: 0.04em;
+                                text-transform: uppercase;
                             " onmouseover="
                                 this.style.opacity='1';
                                 this.style.background='rgba(255,255,255,0.1)';
-                                this.style.borderColor='#ffffff';
                             " onmouseout="
-                                this.style.opacity='0.8';
+                                this.style.opacity='0.85';
                                 this.style.background='transparent';
-                                this.style.borderColor='#ffffff';
                             ">
                                 ✓ Select All
                             </button>
                             <button id="nitra-deselect-all-models" style="
-                                padding: 6px 12px;
+                                padding: 10px 16px;
                                 background: transparent;
                                 border: 1px solid #ffffff;
-                                border-radius: 4px;
+                                border-radius: 8px;
                                 color: #ffffff;
-                                font-size: 11px;
-                                font-weight: 500;
+                                font-size: 0.85em;
+                                font-weight: 600;
                                 cursor: pointer;
                                 transition: all 0.2s ease;
-                                opacity: 0.8;
+                                opacity: 0.85;
+                                letter-spacing: 0.04em;
+                                text-transform: uppercase;
                             " onmouseover="
                                 this.style.opacity='1';
                                 this.style.background='rgba(255,255,255,0.1)';
-                                this.style.borderColor='#ffffff';
                             " onmouseout="
-                                this.style.opacity='0.8';
+                                this.style.opacity='0.85';
                                 this.style.background='transparent';
-                                this.style.borderColor='#ffffff';
                             ">
                                 ✕ Deselect All
                             </button>

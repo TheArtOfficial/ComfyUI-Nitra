@@ -24,6 +24,16 @@ const workflowMediaHydration = new Map();
 const workflowMediaBuffer = new Map();
 let workflowRenderToken = 0;
 let workflowIdFallbackCounter = 0;
+let workflowSortOption = 'name-asc';
+const WORKFLOW_CREATED_KEYS = [
+    'created_at',
+    'createdAt',
+    'dateCreated',
+    'date_created',
+    'created',
+    'createdISO',
+    'workflow_created_at'
+];
 
 // Hydration queue to limit concurrent requests
 const pendingHydrationQueue = [];
@@ -212,6 +222,38 @@ function renderCategoryFilterOptions(categories) {
         workflowCategoryFilter = select.value;
         renderWorkflows();
     };
+}
+
+function getWorkflowCreatedTimestamp(workflow) {
+    if (!workflow || typeof workflow !== 'object') {
+        return 0;
+    }
+    for (const key of WORKFLOW_CREATED_KEYS) {
+        const timestamp = parseTimestamp(workflow[key]);
+        if (timestamp !== null) {
+            return timestamp;
+        }
+    }
+    return 0;
+}
+
+function sortWorkflowsForDisplay(workflows) {
+    if (!Array.isArray(workflows)) {
+        return [];
+    }
+    const sorted = workflows.slice();
+    if (workflowSortOption === 'date-desc') {
+        sorted.sort((a, b) => {
+            const diff = getWorkflowCreatedTimestamp(b) - getWorkflowCreatedTimestamp(a);
+            if (diff !== 0) {
+                return diff;
+            }
+            return (a.name || '').localeCompare(b.name || '');
+        });
+    } else {
+        sorted.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    }
+    return sorted;
 }
 
 // Global helpers so inline handlers on cards can control video playback
@@ -833,6 +875,19 @@ export function renderWorkflows() {
         .filter(category => typeof category === 'string' && category.trim())
     )).sort((a, b) => a.localeCompare(b));
     renderCategoryFilterOptions(allCategories);
+    const sortSelect = document.getElementById('nitra-workflow-sort');
+    if (sortSelect) {
+        if (sortSelect.value !== workflowSortOption) {
+            sortSelect.value = workflowSortOption;
+        }
+        if (!sortSelect.dataset.bound) {
+            sortSelect.dataset.bound = 'true';
+            sortSelect.addEventListener('change', () => {
+                workflowSortOption = sortSelect.value || 'name-asc';
+                renderWorkflows();
+            });
+        }
+    }
 
     const searchedWorkflows = state.workflowsData.filter(workflow => {
         if (!searchTerm) return true;
@@ -844,7 +899,7 @@ export function renderWorkflows() {
             : false;
 
         return nameMatch || descriptionMatch || tagMatch;
-    }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    });
 
     const filteredWorkflows = workflowCategoryFilter === 'all'
         ? searchedWorkflows
@@ -852,12 +907,13 @@ export function renderWorkflows() {
             Array.isArray(workflow.categories)
                 ? workflow.categories.some(category => category === workflowCategoryFilter)
                 : false
-        );
+    );
+    const workflowsForDisplay = sortWorkflowsForDisplay(filteredWorkflows);
     
     // Check if any workflows are in preview mode
     const inPreviewMode = filteredWorkflows.some(w => w._previewMode);
 
-    if (!filteredWorkflows.length) {
+    if (!workflowsForDisplay.length) {
         showWorkflowsPlaceholder(workflowsList, 'No workflows match your filters.');
         updateWorkflowUpgradeBanner(false);
         updateWorkflowInstallButton();
@@ -871,12 +927,12 @@ export function renderWorkflows() {
     workflowsList.style.margin = '0';
     
     clearWorkflowsPlaceholder(workflowsList);
-    updateWorkflowsGrid(workflowsList, filteredWorkflows, (token) => {
+    updateWorkflowsGrid(workflowsList, workflowsForDisplay, (token) => {
         if (token !== workflowRenderToken) {
             return;
         }
         attachWorkflowMediaCompareListeners();
-        syncWorkflowCheckboxStates(filteredWorkflows);
+        syncWorkflowCheckboxStates(workflowsForDisplay);
         updateWorkflowUpgradeBanner(inPreviewMode);
         updateWorkflowInstallButton();
     });
@@ -890,7 +946,7 @@ export function renderWorkflows() {
         };
     }
     
-    setupSelectButtons(filteredWorkflows);
+    setupSelectButtons(workflowsForDisplay);
     restoreBufferedMedia();
 }
 

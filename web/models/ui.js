@@ -40,11 +40,19 @@ const columnStyleAttr = (index, extraStyles = '') => {
     return `style="${styles.join('; ')}"`;
 };
 
-const headerCell = (index, label, resizable = true) => {
+const modelSortState = {
+    key: 'name',
+    direction: 'asc',
+};
+
+const headerCell = (index, label, options = {}) => {
+    const { resizable = true, sortKey = null } = options;
     const widthAttr = columnStyleAttr(index);
     const handle = resizable ? '<span class="nitra-column-resize-handle"></span>' : '';
-    return `<th ${widthAttr} data-column-index="${index}" data-resizable="${resizable}">
-        <div class="nitra-model-header-label">${label}</div>
+    const sortAttr = sortKey ? ` data-sort-key="${sortKey}"` : '';
+    const indicator = sortKey ? getModelSortIndicator(sortKey) : '';
+    return `<th ${widthAttr} data-column-index="${index}" data-resizable="${resizable}"${sortAttr}>
+        <div class="nitra-model-header-label">${label}${indicator}</div>
         ${handle}
     </th>`;
 };
@@ -110,15 +118,16 @@ export function renderModels() {
             : false;
 
         return nameMatch || descriptionMatch || tagMatch;
-    }).sort((a, b) => (a.modelName || a.name || '').localeCompare(b.modelName || b.name || ''));
+    });
+    const modelsForDisplay = sortModelsForDisplay(filteredModels);
     
     // Check if any models are in preview mode
-    const inPreviewMode = filteredModels.some(m => m._previewMode);
+    const inPreviewMode = modelsForDisplay.some(m => m._previewMode);
     
-    if (filteredModels.length === 0) {
+    if (modelsForDisplay.length === 0) {
         modelsList.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--comfy-input-text);">No models match your search.</div>';
     } else {
-        const tableRows = filteredModels.map(model => {
+        const tableRows = modelsForDisplay.map(model => {
             const isPreview = model._previewMode;
             const rowClasses = ['nitra-model-row'];
             if (isPreview) {
@@ -154,11 +163,11 @@ export function renderModels() {
                 <table class="nitra-models-table">
                     <thead>
                         <tr>
-                            ${headerCell(0, '', false)}
-                            ${headerCell(1, 'Model Name')}
-                            ${headerCell(2, 'Size')}
-                            ${headerCell(3, 'Model Type')}
-                            ${headerCell(4, 'Description')}
+                            ${headerCell(0, '', { resizable: false })}
+                            ${headerCell(1, 'Model Name', { sortKey: 'name' })}
+                            ${headerCell(2, 'Size', { sortKey: 'size' })}
+                            ${headerCell(3, 'Model Type', { sortKey: 'installFolder' })}
+                            ${headerCell(4, 'Description', { sortKey: 'description' })}
                         </tr>
                     </thead>
                     <tbody>
@@ -168,6 +177,7 @@ export function renderModels() {
             </div>
         `;
         setupModelColumnResizers();
+        setupModelSortHandlers();
     }
     
     // Show upgrade prompt if in preview mode
@@ -197,7 +207,7 @@ export function renderModels() {
     }
     
     // Add event listeners to checkboxes (only for non-preview items)
-    filteredModels.forEach(model => {
+    modelsForDisplay.forEach(model => {
         const checkbox = document.getElementById(`model-${model.id}`);
         if (checkbox && !model._previewMode) {
             checkbox.checked = state.selectedModels.has(model.id);
@@ -286,6 +296,85 @@ function setupModelColumnResizers() {
 
             document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('mouseup', onMouseUp);
+        });
+    });
+}
+
+function getModelSortIndicator(sortKey) {
+    const isActive = modelSortState.key === sortKey;
+    const symbol = !isActive ? '↕' : (modelSortState.direction === 'asc' ? '▲' : '▼');
+    return `<span class="nitra-model-sort-indicator" style="margin-left: 6px; font-size: 10px; opacity: 0.75;">${symbol}</span>`;
+}
+
+function getModelSortValue(model, sortKey) {
+    switch (sortKey) {
+        case 'size':
+            if (typeof model.size === 'number') return model.size;
+            if (typeof model.fileSize === 'number') return model.fileSize;
+            return 0;
+        case 'installFolder':
+            return (model.installFolder || '').toLowerCase();
+        case 'description':
+            return (model.notes || model.description || '').toLowerCase();
+        case 'name':
+        default:
+            return (model.modelName || model.name || '').toLowerCase();
+    }
+}
+
+function compareModelSortValues(a, b) {
+    if (typeof a === 'number' && typeof b === 'number') {
+        if (a === b) return 0;
+        return a < b ? -1 : 1;
+    }
+    return String(a).localeCompare(String(b));
+}
+
+function sortModelsForDisplay(models) {
+    if (!Array.isArray(models)) {
+        return [];
+    }
+    const sorted = models.slice();
+    const { key, direction } = modelSortState;
+    sorted.sort((modelA, modelB) => {
+        const valueA = getModelSortValue(modelA, key);
+        const valueB = getModelSortValue(modelB, key);
+        let comparison = compareModelSortValues(valueA, valueB);
+        if (comparison === 0 && key !== 'name') {
+            comparison = compareModelSortValues(getModelSortValue(modelA, 'name'), getModelSortValue(modelB, 'name'));
+        }
+        return direction === 'asc' ? comparison : -comparison;
+    });
+    return sorted;
+}
+
+function setupModelSortHandlers() {
+    const table = document.querySelector('.nitra-models-table');
+    if (!table) {
+        return;
+    }
+    const headers = table.querySelectorAll('th[data-sort-key]');
+    headers.forEach((th) => {
+        if (th.dataset.sortBound === 'true') {
+            return;
+        }
+        th.dataset.sortBound = 'true';
+        th.addEventListener('click', (event) => {
+            const targetElement = event.target instanceof Element ? event.target : null;
+            if (targetElement && targetElement.closest('.nitra-column-resize-handle')) {
+                return;
+            }
+            const sortKey = th.dataset.sortKey;
+            if (!sortKey) {
+                return;
+            }
+            if (modelSortState.key === sortKey) {
+                modelSortState.direction = modelSortState.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                modelSortState.key = sortKey;
+                modelSortState.direction = sortKey === 'size' ? 'desc' : 'asc';
+            }
+            renderModels();
         });
     });
 }
