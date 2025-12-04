@@ -63,15 +63,10 @@ async function fetchAndPersistWorkflows(hasSubscription, { silent } = {}) {
     workflowsFetchSilent = silent;
     workflowsFetchPromise = (async () => {
         try {
-            let endpoint;
-            let previewMode;
-            if (hasSubscription) {
-                endpoint = '/nitra/workflows';
-                previewMode = false;
-            } else {
-                endpoint = '/nitra/workflows-metadata';
-                previewMode = true;
-            }
+            // Always use metadata endpoint for initial load to ensure fast response time
+            // Full details (media, signed URLs, dependencies) will be hydrated lazily via IntersectionObserver
+            const endpoint = '/nitra/workflows-metadata';
+            const previewMode = !hasSubscription;
 
             const response = await fetch(endpoint, {
                 headers: {
