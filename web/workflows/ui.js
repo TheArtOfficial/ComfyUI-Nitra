@@ -795,7 +795,30 @@ export function renderWorkflows() {
     }
     
     if (state.workflowsData.length === 0) {
-        // showWorkflowsPlaceholder(workflowsList, 'No workflows available');
+        // If the placeholder is still "Loading...", don't clear it yet.
+        // We only clear if we are sure we loaded (which should happen when renderWorkflows is called after fetch).
+        // However, renderWorkflows clears innerHTML by default on empty list.
+        // We need to differentiate "empty because loading" vs "empty because no results".
+        
+        // Check if the current content is the initial loading placeholder
+        const currentHTML = workflowsList.innerHTML;
+        if (currentHTML.includes('Loading workflows')) {
+            // Do not clear if we might still be loading.
+            // But how do we know?
+            // If this render call came from `loadWorkflows().then()`, we should clear.
+            // If it came from initial render pass with empty cache, we should NOT clear.
+            
+            // For now, we rely on the fact that updateInterface.js only calls renderWorkflows
+            // if cache exists OR after load completes.
+            // So if we are here, it means either we have data (caught above) OR we finished loading and have 0 items.
+            // BUT, there are other triggers for renderWorkflows (search, filter).
+            
+            // If we are here, workflowsData is empty.
+            // If cache was empty, updateInterface skipped the initial render call.
+            // So we must be here after a load completed or a filter was applied.
+            // Therefore, it IS correct to clear the "Loading..." message now.
+        }
+
         if (workflowsList) workflowsList.innerHTML = '';
         updateWorkflowUpgradeBanner(false);
         updateWorkflowInstallButton();

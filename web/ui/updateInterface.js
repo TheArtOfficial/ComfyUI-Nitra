@@ -580,7 +580,14 @@ export function createUpdateInterface() {
                             background: #1a1a1a;
                             min-height: 0;
                         ">
-                            <!-- Content populated dynamically -->
+                            <div class="nitra-centered-placeholder" style="
+                                display: flex;
+                                justify-content: center;
+                                align-items: center;
+                                height: 100%;
+                                color: var(--comfy-input-text);
+                                font-size: 1.1em;
+                            ">Loading workflows...</div>
                         </div>
                             
                         <!-- Bottom Section (HF Token + Install Button) -->
@@ -984,12 +991,21 @@ export function createUpdateInterface() {
 
         if (normalizedTab === 'workflows') {
             const doRender = () => {
-                if (typeof renderWorkflows === 'function') {
+                // Check if we have data in memory OR can hydrate from cache
+                // Note: hydrateWorkflowsFromCache returns false if data is already in memory, so we check workflowsData length too
+                const hasDataInMemory = Array.isArray(state.workflowsData) && state.workflowsData.length > 0;
+                const hydrated = typeof state.hydrateWorkflowsFromCache === 'function' && state.hydrateWorkflowsFromCache();
+                const hasCache = hasDataInMemory || hydrated;
+                
+                // Only render immediately if we have data, otherwise keep the "Loading..." placeholder
+                if (hasCache && typeof renderWorkflows === 'function') {
                     renderWorkflows();
                 }
+
                 if (typeof loadWorkflows === 'function') {
                     loadWorkflows({ backgroundRefresh: true }).then(success => {
-                        if (success && typeof renderWorkflows === 'function') {
+                        // Always render after load completes to clear placeholder or show results
+                        if (typeof renderWorkflows === 'function') {
                             renderWorkflows();
                         }
                     });
