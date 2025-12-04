@@ -6,7 +6,7 @@ import { getWebsiteBaseUrl } from '../core/config.js';
 
 // Caches to avoid re-fetching workflow/subgraph data and installed models
 const workflowDetailsCache = new Map(); // workflowId -> workflow data (with dependencies)
-const subgraphDependenciesCache = new Map(); // subgraphId -> dependencies object
+const workflowModelCache = new Map(); // workflowId -> [{ id, name, size, url }]
 let existingModelsCache = null; // array of installed model IDs
 let existingModelsCacheTimestamp = 0;
 const EXISTING_MODELS_CACHE_TTL_MS = 60 * 1000; // 1 minute
@@ -62,7 +62,7 @@ function shouldRefreshWorkflows(cacheInfo, hasSubscription) {
 
 function clearWorkflowCaches() {
     workflowDetailsCache.clear();
-    subgraphDependenciesCache.clear();
+    workflowModelCache.clear();
     existingModelsCache = null;
     existingModelsCacheTimestamp = 0;
     clearMediaRefreshTimer();
@@ -162,6 +162,9 @@ async function fetchAndPersistWorkflows(hasSubscription, { silent } = {}) {
             } else {
                 state.setWorkflowsData(state.workflowsData, { mode });
             }
+            if (Array.isArray(state.workflowsData)) {
+                state.workflowsData.forEach(cacheWorkflowModels);
+            }
             scheduleMediaRefresh(state.workflowsData);
 
             return true;
@@ -200,6 +203,58 @@ function extractDynamoValue(value) {
     return value;
 }
 
+function extractModelsFromDependencies(dependencies) {
+    if (!dependencies || typeof dependencies !== 'object') {
+        return [];
+    }
+    const models = Array.isArray(dependencies.models) ? dependencies.models : [];
+    return models
+        .map((model) => {
+            if (!model || typeof model !== 'object' || !model.id) {
+                return null;
+            }
+            const size = typeof model.size === 'number'
+                ? model.size
+                : (typeof model.fileSize === 'number' ? model.fileSize : 0);
+            return {
+                id: model.id,
+                name: model.name || model.modelName || '',
+                size,
+                url: model.url || '',
+            };
+        })
+        .filter(Boolean);
+}
+
+function cacheWorkflowModels(workflow) {
+    if (!workflow || !workflow.id) {
+        return;
+    }
+    let dependencies = extractDynamoValue(workflow.dependencies);
+    let models = [];
+    if (Array.isArray(workflow.models)) {
+        models = workflow.models
+            .map(model => {
+                if (!model || typeof model !== 'object' || !model.id) {
+                    return null;
+                }
+                const size = typeof model.size === 'number'
+                    ? model.size
+                    : (typeof model.fileSize === 'number' ? model.fileSize : 0);
+                return {
+                    id: model.id,
+                    name: model.name || model.modelName || '',
+                    size,
+                    url: model.url || '',
+                };
+            })
+            .filter(Boolean);
+    } else {
+        models = extractModelsFromDependencies(dependencies);
+    }
+    workflowModelCache.set(workflow.id, models);
+}
+
 export async function fetchWorkflowDetails(workflowId, options = {}) {
     const { refresh = false } = options;
 
@@ -215,6 +270,7 @@ export async function fetchWorkflowDetails(workflowId, options = {}) {
             : null;
         if (fromState) {
             workflowDetailsCache.set(workflowId, fromState);
+            cacheWorkflowModels(fromState);
             return fromState;
         }
     }
@@ -236,38 +292,10 @@ export async function fetchWorkflowDetails(workflowId, options = {}) {
 
         const workflow = await response.json();
         workflowDetailsCache.set(workflowId, workflow);
+        cacheWorkflowModels(workflow);
         return workflow;
     } catch (error) {
         console.error(`Error fetching workflow ${workflowId}:`, error);
-        return null;
-    }
-}
-
-async function fetchSubgraphDependencies(subgraphId) {
-    if (subgraphDependenciesCache.has(subgraphId)) {
-        return subgraphDependenciesCache.get(subgraphId);
-    }
-
-    try {
-        const subgraphResponse = await fetch(`${getWebsiteBaseUrl()}/api/subgraphs/${subgraphId}`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${state.currentUser.apiToken}`,
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (!subgraphResponse.ok) {
-            console.error(`Failed to fetch subgraph ${subgraphId}: ${subgraphResponse.status}`);
-            return null;
-        }
-
-        const subgraphData = await subgraphResponse.json();
-        const subgraphDependencies = extractDynamoValue(subgraphData.dependencies);
-        subgraphDependenciesCache.set(subgraphId, subgraphDependencies);
-        return subgraphDependencies;
-    } catch (error) {
-        console.error(`Error fetching subgraph ${subgraphId}:`, error);
         return null;
     }
 }
@@ -331,66 +359,33 @@ export async function calculateTotalWorkflowSize(selectedWorkflowIds) {
     let totalSize = 0;
     const uniqueModels = new Map(); // model_id -> model_data
     const existingModels = await getExistingModels();
-    
-    // Helper function to collect models from dependencies
-    const collectModelsFromDependencies = async (dependencies, source = 'workflow') => {
-        if (!dependencies) return;
-        
-        // Process direct model dependencies
-        if (dependencies.models && Array.isArray(dependencies.models)) {
-            dependencies.models.forEach(dep => {
-                const modelId = dep.id;
-                const modelSize = dep.size || 0;
-                const modelName = dep.name || '';
-                const modelUrl = dep.url || '';
-                
-                if (modelId && !uniqueModels.has(modelId)) {
-                    // Check if model is already installed
-                    if (!existingModels.has(modelId)) {
-                        uniqueModels.set(modelId, {
-                            id: modelId,
-                            name: modelName,
-                            size: modelSize,
-                            url: modelUrl
-                        });
-                    }
-                }
-            });
-        }
-        
-        // Process subgraph dependencies
-        if (dependencies.subgraphs && Array.isArray(dependencies.subgraphs)) {
-            for (const subgraph of dependencies.subgraphs) {
-                const subgraphId = subgraph.id;
-                if (subgraphId) {
-                    const subgraphDependencies = await fetchSubgraphDependencies(subgraphId);
-                    if (subgraphDependencies) {
-                        await collectModelsFromDependencies(subgraphDependencies, `subgraph-${subgraphId}`);
-                    }
-                }
+
+    for (const workflowId of selectedWorkflowIds) {
+        if (!workflowModelCache.has(workflowId)) {
+            const workflow = await fetchWorkflowDetails(workflowId);
+            if (!workflow) {
+                continue;
             }
         }
-    };
-    
-    for (const workflowId of selectedWorkflowIds) {
-        const workflow = await fetchWorkflowDetails(workflowId);
-        if (!workflow) {
-            continue;
-        }
-
-        // Extract dependencies from DynamoDB format (workflow data may be stored that way)
-        const dependencies = extractDynamoValue(workflow.dependencies);
-        
-        // Collect all models from workflow dependencies (including subgraph dependencies)
-        await collectModelsFromDependencies(dependencies, `workflow-${workflowId}`);
+        const models = workflowModelCache.get(workflowId) || [];
+        models.forEach(model => {
+            if (!model || !model.id) {
+                return;
+            }
+            if (existingModels.has(model.id) || uniqueModels.has(model.id)) {
+                return;
+            }
+            uniqueModels.set(model.id, {
+                id: model.id,
+                name: model.name || '',
+                size: typeof model.size === 'number' ? model.size : 0,
+                url: model.url || ''
+            });
+            if (model.size && model.size > 0) {
+                totalSize += model.size;
+            }
+        });
     }
-    
-    // Calculate total size from unique models
-    uniqueModels.forEach((model, modelId) => {
-        if (model.size && model.size > 0) {
-            totalSize += model.size;
-        }
-    });
     
     return {
         totalSize: totalSize,
