@@ -828,7 +828,10 @@ export function renderWorkflows() {
     const rawSearch = document.getElementById('nitra-workflow-search')?.value || '';
     const searchTerm = rawSearch.toLowerCase().trim();
 
-    const allCategories = Array.from(new Set(state.workflowsData.flatMap(workflow => Array.isArray(workflow.categories) ? workflow.categories : []).filter(category => typeof category === 'string' && category.trim()))).sort((a, b) => a.localeCompare(b));
+    const allCategories = Array.from(new Set(state.workflowsData
+        .flatMap(workflow => Array.isArray(workflow.categories) ? workflow.categories : [])
+        .filter(category => typeof category === 'string' && category.trim())
+    )).sort((a, b) => a.localeCompare(b));
     renderCategoryFilterOptions(allCategories);
 
     const searchedWorkflows = state.workflowsData.filter(workflow => {
@@ -849,7 +852,7 @@ export function renderWorkflows() {
             Array.isArray(workflow.categories)
                 ? workflow.categories.some(category => category === workflowCategoryFilter)
                 : false
-    );
+        );
     
     // Check if any workflows are in preview mode
     const inPreviewMode = filteredWorkflows.some(w => w._previewMode);
