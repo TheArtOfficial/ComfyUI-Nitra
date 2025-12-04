@@ -15,6 +15,35 @@ let workflowsFetchSilent = true;
 const MEDIA_REFRESH_SAFETY_MS = 2 * 60 * 1000;
 let mediaRefreshTimer = null;
 
+const WORKFLOW_VERSION_KEYS = [
+    'updated_at',
+    'updatedAt',
+    'dateUpdated',
+    'date_updated',
+    'dateModified',
+    'modified_at',
+    'modifiedAt',
+    'lastUpdated',
+    'workflow_updated_at'
+];
+
+function getWorkflowTimestamp(workflow) {
+    if (!workflow || typeof workflow !== 'object') return 0;
+    let latest = 0;
+    for (const key of WORKFLOW_VERSION_KEYS) {
+        const value = workflow[key];
+        if (typeof value === 'string' && value.trim()) {
+            const parsed = Date.parse(value);
+            if (!Number.isNaN(parsed) && parsed > latest) {
+                latest = parsed;
+            }
+        } else if (typeof value === 'number' && Number.isFinite(value) && value > latest) {
+            latest = value;
+        }
+    }
+    return latest;
+}
+
 function shouldRefreshWorkflows(cacheInfo, hasSubscription) {
     if (!cacheInfo) {
         return true;
@@ -84,6 +113,34 @@ async function fetchAndPersistWorkflows(hasSubscription, { silent } = {}) {
 
             if (previewMode && Array.isArray(data)) {
                 data.forEach((w) => (w._previewMode = true));
+            }
+
+            // SMART MERGE: Preserve hydrated details (media, dependencies) from current state if versions match.
+            // This prevents the metadata-only fetch from overwriting valid, cached full details.
+            if (Array.isArray(state.workflowsData) && state.workflowsData.length > 0) {
+                const currentMap = new Map(state.workflowsData.map(w => [w.id, w]));
+                data.forEach((newItem) => {
+                    if (!newItem || !newItem.id) return;
+                    const oldItem = currentMap.get(newItem.id);
+                    if (oldItem) {
+                        const newTime = getWorkflowTimestamp(newItem);
+                        const oldTime = getWorkflowTimestamp(oldItem);
+                        
+                        // If timestamps match (and are valid), preserve heavy data
+                        if (newTime > 0 && newTime === oldTime) {
+                             if (Array.isArray(oldItem.media) && oldItem.media.length > 0) {
+                                 newItem.media = oldItem.media.map(m => ({...m}));
+                             }
+                             if (oldItem.dependencies) {
+                                 newItem.dependencies = oldItem.dependencies;
+                             }
+                             // Also preserve generated ID if present to avoid re-keying
+                             if (oldItem.__workflowGeneratedId) {
+                                 newItem.__workflowGeneratedId = oldItem.__workflowGeneratedId;
+                             }
+                        }
+                    }
+                });
             }
 
             const cacheInfo =
