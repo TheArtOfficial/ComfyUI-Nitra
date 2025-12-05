@@ -16,6 +16,10 @@ let workflowsFetchSilent = true;
 const MEDIA_REFRESH_SAFETY_MS = 2 * 60 * 1000;
 let mediaRefreshTimer = null;
 
+export function isWorkflowsFetchInFlight() {
+    return workflowsFetchPromise !== null;
+}
+
 const WORKFLOW_VERSION_KEYS = [
     'updated_at',
     'updatedAt',

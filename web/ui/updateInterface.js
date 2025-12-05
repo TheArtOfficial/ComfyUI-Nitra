@@ -6,7 +6,7 @@ import { getWebsiteBaseUrl } from '../core/config.js';
 import { formatLicenseStatus, fetchLicenseStatus, initializeLicenseStatus } from '../license/status.js';
 import { logoutWebsite } from '../auth/logout.js';
 import { updateListHeights } from './layout.js';
-import { loadWorkflows, checkWorkflowsForHFTokenRequirement } from '../workflows/api.js';
+import { loadWorkflows, checkWorkflowsForHFTokenRequirement, isWorkflowsFetchInFlight } from '../workflows/api.js';
 import { renderWorkflows } from '../workflows/ui.js';
 import { updateWorkflowInstallButton } from '../workflows/selection.js';
 import { pollForWorkflowCompletion, cancelWorkflowInstall, resetWorkflowInstallButton } from '../workflows/installation.js';
@@ -1014,9 +1014,10 @@ export function createUpdateInterface() {
                     renderWorkflows();
                 }
 
-                if (typeof loadWorkflows === 'function') {
-                    loadWorkflows({ backgroundRefresh: true }).then(success => {
-                        // Always render after load completes to clear placeholder or show results
+                const hasCachedWorkflows = Array.isArray(state.workflowsData) && state.workflowsData.length > 0;
+                const fetchInFlight = typeof isWorkflowsFetchInFlight === 'function' && isWorkflowsFetchInFlight();
+                if (typeof loadWorkflows === 'function' && !hasCachedWorkflows && !fetchInFlight) {
+                    loadWorkflows({ backgroundRefresh: true, force: true }).then(success => {
                         if (typeof renderWorkflows === 'function') {
                             renderWorkflows();
                         }

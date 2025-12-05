@@ -962,62 +962,14 @@ async function hydrateWorkflowMedia(workflowId, workflow, cardElement) {
             // console.debug('Nitra: Starting hydration for workflow', workflowId);
             // Force refresh from server to get fresh presigned URLs
             const details = await fetchWorkflowDetails(workflowId, { refresh: true, mediaOnly: true });
-            
-            if (!details) {
-                // console.warn('Nitra: Hydration failed - No details returned for', workflowId);
+            if (!details || !workflowHasDisplayableMedia(details)) {
                 return;
             }
-
-            // console.debug('Nitra: Fetched details for hydration', workflowId, details.media);
-
-            if (!workflowHasDisplayableMedia(details)) {
-                // console.warn('Nitra: Hydrated details still have no displayable media for', workflowId);
-                return;
-            }
-
-            const updatedWorkflow = {
-                ...workflow,
-                ...details,
-            };
-
-            const newCard = createWorkflowCardElement(updatedWorkflow);
-            if (!newCard) {
-                return;
-            }
-
-            // If the element was removed from DOM in the meantime, don't re-insert unless it's just disconnected (e.g. tab switch)
-            // But we must update the cache node reference so future renders use the new card
-            if (cardElement && cardElement.parentNode) {
-                cardElement.replaceWith(newCard);
-            } else if (cardElement) {
-                // If old card is detached, we still want to update the cache so next time it's attached it has media
-                // The grid updater will pull from cache
-            }
-
-            // Update the cache immediately so next render cycle picks up the full card
-            workflowCardCache.set(workflowId, {
-                node: newCard,
-                version: computeWorkflowVersion(updatedWorkflow),
-                mediaSignature: computeMediaSignature(updatedWorkflow),
-            });
-
-            const list = state.workflowsData;
-            if (Array.isArray(list)) {
-                const idx = list.findIndex(item => resolveWorkflowId(item) === workflowId);
-                if (idx >= 0) {
-                    // Update state.workflowsData in place to persist the hydration
-                    state.workflowsData[idx] = {
-                        ...list[idx],
-                        ...details,
-                    };
-                    // Ensure the main state store is updated so if a re-render happens from scratch it uses this
-                    state.setWorkflowsData(state.workflowsData, { mode: state.getWorkflowsCacheInfo().mode });
-                }
-            }
-            workflowMediaBuffer.set(workflowId, updatedWorkflow.media.map(item => ({ ...item })));
-
+            workflow.media = details.media;
+            workflowMediaBuffer.set(workflowId, details.media.map(item => ({ ...item })));
+            cardElement.innerHTML = createWorkflowCardElement(workflow).innerHTML;
             attachWorkflowMediaCompareListeners();
-            updateCheckboxForWorkflow(workflowId, updatedWorkflow);
+            updateCheckboxForWorkflow(workflowId, workflow);
         } catch (error) {
             console.warn('Nitra: Failed to hydrate workflow media', workflowId, error);
         } finally {
