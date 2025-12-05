@@ -1,13 +1,26 @@
 import * as state from './state.js';
 import { loadWorkflows } from '../workflows/api.js';
 import { loadModels } from '../models/api.js';
-// import { fetchLicenseStatus } from '../license/status.js';
+import { fetchLicenseStatus } from '../license/status.js';
 
 let preloadPromise = null;
 
+async function runPrefetch() {
+    if (!state.isAuthenticated || !state.currentUser?.apiToken) {
+        return;
+    }
+    await fetchLicenseStatus().catch(() => null);
+    await loadWorkflows({ backgroundRefresh: true, force: true }).catch(() => null);
+    await loadModels({ backgroundRefresh: true, force: true }).catch(() => null);
+}
+
 export function ensureDataPrefetch() {
-    // Data prefetching is now handled by the UI initialization to ensure
-    // license status is known before fetching content (avoiding locked/unlocked race conditions).
-    return Promise.resolve();
+    if (preloadPromise) {
+        return preloadPromise;
+    }
+    preloadPromise = runPrefetch().finally(() => {
+        preloadPromise = null;
+    });
+    return preloadPromise;
 }
 
