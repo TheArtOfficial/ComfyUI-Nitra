@@ -1692,7 +1692,7 @@ export function createUpdateInterface() {
                 const hfTokenInput = document.getElementById('nitra-workflow-hf-token');
                 const hfToken = hfTokenInput ? hfTokenInput.value.trim() : '';
                 
-                const requiresHfToken = await checkWorkflowsForHFTokenRequirement();
+                const requiresHfToken = await checkWorkflowsForHFTokenRequirement({ forceRefreshCache: true });
                 if (requiresHfToken && !hfToken) {
                     showHuggingFaceTokenPrompt({ context: 'workflow' });
                     return;

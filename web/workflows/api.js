@@ -224,14 +224,66 @@ function extractModelsFromDependencies(dependencies) {
                 name: model.name || model.modelName || '',
                 size,
                 url: model.url || '',
+                hfTokenRequired: model.hfTokenRequired === true || model.hf_token_required === true,
             };
         })
         .filter(Boolean);
 }
 
-function cacheWorkflowModels(workflow) {
-    if (!workflow || !workflow.id) {
+function resolveWorkflowId(workflow) {
+    if (!workflow || typeof workflow !== 'object') {
+        return null;
+    }
+    const candidates = [
+        workflow.id,
+        workflow.workflowId,
+        workflow.workflow_id,
+        workflow.slug,
+        workflow.__workflowGeneratedId,
+    ];
+    for (const candidate of candidates) {
+        if (candidate !== undefined && candidate !== null) {
+            const value = String(candidate).trim();
+            if (value) {
+                return value;
+            }
+        }
+    }
+    return null;
+}
+
+function workflowMatchesId(workflow, workflowId) {
+    const resolved = resolveWorkflowId(workflow);
+    if (!resolved) {
+        return false;
+    }
+    return String(resolved) === String(workflowId);
+}
+
+function ensureWorkflowCachedFromState(workflowId) {
+    if (workflowModelCache.has(workflowId)) {
         return;
+    }
+    if (!Array.isArray(state.workflowsData)) {
+        return;
+    }
+    const workflow = state.workflowsData.find(w => workflowMatchesId(w, workflowId));
+    if (workflow) {
+        cacheWorkflowModels(workflow);
+        const resolvedId = resolveWorkflowId(workflow) || workflowId;
+        if (!workflowDetailsCache.has(resolvedId)) {
+            workflowDetailsCache.set(resolvedId, workflow);
+        }
+    }
+}
+
+function cacheWorkflowModels(workflow) {
+    const resolvedId = resolveWorkflowId(workflow);
+    if (!resolvedId) {
+        return;
+    }
+    if (!workflow.id) {
+        workflow.id = resolvedId;
     }
     let dependencies = extractDynamoValue(workflow.dependencies);
     let models = [];
@@ -249,13 +301,14 @@ function cacheWorkflowModels(workflow) {
                     name: model.name || model.modelName || '',
                     size,
                     url: model.url || '',
+                    hfTokenRequired: model.hfTokenRequired === true || model.hf_token_required === true,
                 };
             })
             .filter(Boolean);
     } else {
         models = extractModelsFromDependencies(dependencies);
     }
-    workflowModelCache.set(workflow.id, models);
+    workflowModelCache.set(resolvedId, models);
 }
 
 export async function fetchWorkflowDetails(workflowId, options = {}) {
@@ -268,13 +321,10 @@ export async function fetchWorkflowDetails(workflowId, options = {}) {
 
     // Try to find it in the workflows list loaded earlier
     if (!refresh) {
-        const fromState = Array.isArray(state.workflowsData)
-            ? state.workflowsData.find(w => w && w.id === workflowId && (!mediaOnly || w.dependencies))
-            : null;
-        if (fromState) {
-            workflowDetailsCache.set(workflowId, fromState);
-            cacheWorkflowModels(fromState);
-            return fromState;
+        ensureWorkflowCachedFromState(workflowId);
+        const cached = workflowDetailsCache.get(workflowId);
+        if (cached && (!mediaOnly || cached.dependencies)) {
+            return cached;
         }
     }
 
@@ -294,7 +344,8 @@ export async function fetchWorkflowDetails(workflowId, options = {}) {
         }
 
         const workflow = await response.json();
-        workflowDetailsCache.set(workflowId, workflow);
+        const resolvedId = resolveWorkflowId(workflow) || workflowId;
+        workflowDetailsCache.set(resolvedId, workflow);
         cacheWorkflowModels(workflow);
         return workflow;
     } catch (error) {
@@ -304,7 +355,7 @@ export async function fetchWorkflowDetails(workflowId, options = {}) {
 }
 
 export async function loadWorkflows(options = {}) {
-    const { backgroundRefresh = true, force = false } = options;
+    const { backgroundRefresh = true, force = false, selectForWarmup = [] } = options;
     const cacheInfo = typeof state.getWorkflowsCacheInfo === 'function' ? state.getWorkflowsCacheInfo() : null;
     const hasCached = cacheInfo && Array.isArray(cacheInfo.data) && cacheInfo.data.length > 0;
 
@@ -321,12 +372,12 @@ export async function loadWorkflows(options = {}) {
 
     if (!needsRefresh) {
         if (backgroundRefresh) {
-            return fetchAndPersistWorkflows(hasSubscription, { silent: true });
+            return fetchAndPersistWorkflows(hasSubscription, { silent: true, selectForWarmup });
         }
         return true;
     }
 
-    return fetchAndPersistWorkflows(hasSubscription, { silent: backgroundRefresh });
+    return fetchAndPersistWorkflows(hasSubscription, { silent: backgroundRefresh, selectForWarmup });
 }
 
 export async function getExistingModels() {
@@ -377,9 +428,18 @@ export async function calculateTotalWorkflowSize(selectedWorkflowIds, options = 
 
     for (const workflowId of selectedWorkflowIds) {
         if (!workflowModelCache.has(workflowId)) {
-            const workflow = await fetchWorkflowDetails(workflowId);
-            if (!workflow) {
-                continue;
+            if (!forceRefreshCache) {
+                ensureWorkflowCachedFromState(workflowId);
+            }
+            if (!workflowModelCache.has(workflowId)) {
+                if (forceRefreshCache) {
+                    const workflow = await fetchWorkflowDetails(workflowId);
+                    if (!workflow) {
+                        continue;
+                    }
+                } else {
+                    continue;
+                }
             }
         }
         const models = workflowModelCache.get(workflowId) || [];
@@ -409,14 +469,22 @@ export async function calculateTotalWorkflowSize(selectedWorkflowIds, options = 
     };
 }
 
-export async function checkWorkflowsForHFTokenRequirement() {
+export async function checkWorkflowsForHFTokenRequirement(options = {}) {
+    const { forceRefreshCache = false } = options;
     let requiresHFToken = false;
     
     for (const workflowId of state.selectedWorkflows) {
         if (!workflowModelCache.has(workflowId)) {
-            const workflow = await fetchWorkflowDetails(workflowId);
-            if (!workflow) {
-                continue;
+            if (forceRefreshCache) {
+                const workflow = await fetchWorkflowDetails(workflowId);
+                if (!workflow) {
+                    continue;
+                }
+            } else {
+                ensureWorkflowCachedFromState(workflowId);
+                if (!workflowModelCache.has(workflowId)) {
+                    continue;
+                }
             }
         }
         const models = workflowModelCache.get(workflowId) || [];

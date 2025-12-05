@@ -438,7 +438,7 @@ function updateCheckboxForWorkflow(workflowId, workflow) {
         } else {
             state.selectedWorkflows.delete(workflowId);
         }
-        updateWorkflowInstallButton({ forceWarmModelCache: true });
+        updateWorkflowInstallButton();
     };
 }
 
@@ -619,7 +619,7 @@ function setupSelectButtons(filteredWorkflows) {
                     }
                 });
             syncWorkflowCheckboxStates(filteredWorkflows);
-            updateWorkflowInstallButton({ forceWarmModelCache: true });
+            updateWorkflowInstallButton();
         };
     }
 
@@ -637,7 +637,7 @@ function setupSelectButtons(filteredWorkflows) {
                 });
             }
             syncWorkflowCheckboxStates(filteredWorkflows);
-            updateWorkflowInstallButton({ forceWarmModelCache: true });
+            updateWorkflowInstallButton();
         };
     }
 }
@@ -910,7 +910,7 @@ export function renderWorkflows() {
     );
     const workflowsForDisplay = sortWorkflowsForDisplay(filteredWorkflows);
     if (state.selectedWorkflows.size > 0) {
-        updateWorkflowInstallButton({ forceWarmModelCache: true });
+        updateWorkflowInstallButton();
     }
     
     // Check if any workflows are in preview mode
