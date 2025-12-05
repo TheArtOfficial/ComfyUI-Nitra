@@ -116,19 +116,27 @@ async function applyLicenseStatus(subscriptionData) {
     });
     window.dispatchEvent(event);
     try {
-        await fetchRegisteredDevices();
+        await fetchRegisteredDevices(null, { forceRefresh: false });
     } catch (error) {
         console.warn('Nitra: Unable to refresh device registrations', error);
     }
     updateLicenseStatusDisplay();
 }
 
+let licenseFetchPromise = null;
+
 export async function initializeLicenseStatus() {
     const cached = readLicenseCache();
     if (cached) {
         await applyLicenseStatus(cached);
     }
-    return fetchLicenseStatus();
+    if (licenseFetchPromise) {
+        return licenseFetchPromise;
+    }
+    licenseFetchPromise = fetchLicenseStatus().finally(() => {
+        licenseFetchPromise = null;
+    });
+    return licenseFetchPromise;
 }
 
 export function formatLicenseStatus(subscriptionData) {

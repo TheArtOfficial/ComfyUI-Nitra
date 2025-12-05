@@ -8,7 +8,7 @@ import { logoutWebsite } from '../auth/logout.js';
 import { updateListHeights } from './layout.js';
 import { loadWorkflows, checkWorkflowsForHFTokenRequirement, isWorkflowsFetchInFlight, ensureWorkflowsDataReady } from '../workflows/api.js';
 import { renderWorkflows } from '../workflows/ui.js';
-import { updateWorkflowInstallButton } from '../workflows/selection.js';
+import { updateWorkflowInstallButton, prefetchWorkflowHfToken, setWorkflowHfToken } from '../workflows/selection.js';
 import { pollForWorkflowCompletion, cancelWorkflowInstall, resetWorkflowInstallButton } from '../workflows/installation.js';
 import { loadModels } from '../models/api.js';
 import { renderModels } from '../models/ui.js';
@@ -25,6 +25,7 @@ let lastActiveTab = 'optimizer';
 
 export function createUpdateInterface() {
     const updatePanel = document.createElement("div");
+    prefetchWorkflowHfToken();
     // Initialize license status (restores cache immediately, fetches fresh in background)
     const licenseCheckPromise = initializeLicenseStatus().catch((error) => {
         console.warn('Nitra: Failed to initialize license status', error);
@@ -77,7 +78,7 @@ export function createUpdateInterface() {
         getDeviceIdentity(true)
             .then((identity) => {
                 renderDeviceIdentity(identity);
-                return fetchRegisteredDevices();
+            return fetchRegisteredDevices(identity);
             })
             .then((registrations) => {
                 return getDeviceIdentity().then((identity) => {
@@ -170,7 +171,7 @@ export function createUpdateInterface() {
             const identity = await getDeviceIdentity(forceRefresh);
             let registrations = null;
             try {
-                registrations = await fetchRegisteredDevices();
+                registrations = await fetchRegisteredDevices(identity);
             } catch (regError) {
                 console.warn('Nitra: Failed to fetch registered devices', regError);
             }
@@ -1383,6 +1384,7 @@ export function createUpdateInterface() {
                     body: JSON.stringify(payload)
                 });
                 if (resp.ok) {
+                    setWorkflowHfToken(token);
                     if (statusEl) {
                         statusEl.style.display = 'block';
                         statusEl.style.background = 'rgba(34, 197, 94, 0.15)';
@@ -1433,8 +1435,10 @@ export function createUpdateInterface() {
                 if (tokenEl) {
                     if (cfg.huggingface_token && typeof cfg.huggingface_token === 'string') {
                         tokenEl.value = cfg.huggingface_token;
+                        setWorkflowHfToken(cfg.huggingface_token);
                     } else {
                         tokenEl.value = '';
+                        setWorkflowHfToken('');
                     }
                     tokenEl.type = 'password';
                 }
@@ -1723,7 +1727,7 @@ export function createUpdateInterface() {
                 const hfTokenInput = document.getElementById('nitra-workflow-hf-token');
                 const hfToken = hfTokenInput ? hfTokenInput.value.trim() : '';
                 
-                const requiresHfToken = await checkWorkflowsForHFTokenRequirement({ forceRefreshCache: true });
+                const requiresHfToken = await checkWorkflowsForHFTokenRequirement();
                 if (requiresHfToken && !hfToken) {
                     showHuggingFaceTokenPrompt({ context: 'workflow' });
                     return;

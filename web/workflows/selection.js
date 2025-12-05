@@ -5,6 +5,38 @@ import * as state from '../core/state.js';
 import { calculateTotalWorkflowSize, checkWorkflowsForHFTokenRequirement, collectWorkflowInstallMessages } from './api.js';
 
 let workflowButtonUpdateToken = 0;
+let userConfigPrefetchPromise = null;
+let hfTokenCache = null;
+let hfTokenPrefetchPromise = null;
+
+export function setWorkflowHfToken(token) {
+    hfTokenCache = token && typeof token === 'string' ? token.trim() : '';
+    const tokenInput = document.getElementById('nitra-workflow-hf-token');
+    if (tokenInput) {
+        tokenInput.value = hfTokenCache || '';
+    }
+}
+
+export function prefetchWorkflowHfToken() {
+    if (hfTokenCache) return Promise.resolve(hfTokenCache);
+    if (hfTokenPrefetchPromise) return hfTokenPrefetchPromise;
+    hfTokenPrefetchPromise = fetch('/nitra/user-config')
+        .then(r => r.ok ? r.json() : null)
+        .then(cfg => {
+            const token = cfg && typeof cfg.huggingface_token === 'string'
+                ? cfg.huggingface_token.trim()
+                : '';
+            if (token) {
+                setWorkflowHfToken(token);
+            }
+            return hfTokenCache;
+        })
+        .catch(() => null)
+        .finally(() => {
+            hfTokenPrefetchPromise = null;
+        });
+    return hfTokenPrefetchPromise;
+}
 
 function hideWorkflowMessage() {
     const messageElement = document.getElementById('nitra-workflow-install-message');
@@ -132,6 +164,16 @@ export async function updateWorkflowInstallButton() {
     
     resetWorkflowLoadingState(installBtn, hfTokenContainer);
     
+    // Ensure HF token is prefetched and applied if available
+    const tokenInput = document.getElementById('nitra-workflow-hf-token');
+    if (tokenInput && !tokenInput.value.trim()) {
+        if (hfTokenCache) {
+            tokenInput.value = hfTokenCache;
+        } else {
+            prefetchWorkflowHfToken();
+        }
+    }
+
     // Don't disable button if installation is ongoing (for cancel functionality)
     installBtn.disabled = state.selectedWorkflows.size === 0 && !state.ongoingWorkflowInstall;
     

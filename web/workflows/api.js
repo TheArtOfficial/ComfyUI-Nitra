@@ -320,7 +320,19 @@ function cacheWorkflowModels(workflow) {
     } else {
         models = extractModelsFromDependencies(dependencies);
     }
-    workflowModelCache.set(resolvedId, models);
+    // Enrich hfTokenRequired from global models metadata if missing/false
+    const globalModels = Array.isArray(state.modelsData) ? state.modelsData : [];
+    const mergedModels = models.map((model) => {
+        if (model && model.hfTokenRequired === true) {
+            return model;
+        }
+        const globalMatch = globalModels.find((gm) => gm && gm.id === model.id);
+        if (globalMatch && globalMatch.hfTokenRequired === true) {
+            return { ...model, hfTokenRequired: true };
+        }
+        return model;
+    });
+    workflowModelCache.set(resolvedId, mergedModels);
 }
 
 export async function fetchWorkflowDetails(workflowId, options = {}) {
@@ -445,13 +457,13 @@ export async function calculateTotalWorkflowSize(selectedWorkflowIds, options = 
         for (const workflowId of selectedWorkflowIds) {
             if (!workflowModelCache.has(workflowId)) {
                 hydrationPromises.push(fetchWorkflowDetails(workflowId));
-            }
-        }
+                    }
+                }
         if (hydrationPromises.length) {
             await Promise.allSettled(hydrationPromises);
-        }
-    }
-
+                    }
+                }
+    
     for (const workflowId of selectedWorkflowIds) {
         if (!workflowModelCache.has(workflowId)) {
             if (!forceRefreshCache) {
@@ -460,10 +472,10 @@ export async function calculateTotalWorkflowSize(selectedWorkflowIds, options = 
                     continue;
                 }
             } else {
-                const workflow = await fetchWorkflowDetails(workflowId);
-                if (!workflow) {
-                    continue;
-                }
+        const workflow = await fetchWorkflowDetails(workflowId);
+        if (!workflow) {
+            continue;
+        }
             }
         }
         const models = workflowModelCache.get(workflowId) || [];
@@ -480,10 +492,10 @@ export async function calculateTotalWorkflowSize(selectedWorkflowIds, options = 
                 size: typeof model.size === 'number' ? model.size : 0,
                 url: model.url || ''
             });
-            if (model.size && model.size > 0) {
-                totalSize += model.size;
-            }
-        });
+        if (model.size && model.size > 0) {
+            totalSize += model.size;
+        }
+    });
     }
     
     return {
@@ -500,10 +512,10 @@ export async function checkWorkflowsForHFTokenRequirement(options = {}) {
     for (const workflowId of state.selectedWorkflows) {
         if (!workflowModelCache.has(workflowId)) {
             if (forceRefreshCache) {
-                const workflow = await fetchWorkflowDetails(workflowId);
-                if (!workflow) {
-                    continue;
-                }
+        const workflow = await fetchWorkflowDetails(workflowId);
+        if (!workflow) {
+            continue;
+        }
             } else {
                 ensureWorkflowCachedFromState(workflowId);
                 if (!workflowModelCache.has(workflowId)) {
@@ -513,9 +525,9 @@ export async function checkWorkflowsForHFTokenRequirement(options = {}) {
         }
         const models = workflowModelCache.get(workflowId) || [];
         if (models.some(model => model && model.hfTokenRequired === true)) {
-            requiresHFToken = true;
-            break;
-        }
+                    requiresHFToken = true;
+                    break;
+                }
     }
     
     return requiresHFToken;
@@ -553,20 +565,19 @@ export async function collectWorkflowInstallMessages(workflowIds) {
     }
 
     const buildEntry = (workflow) => {
-        if (!workflow) {
-            return null;
-        }
-        const message = extractWorkflowInstallMessage(workflow);
-        if (!message) {
-            return null;
-        }
-        const name = workflow.name || workflow.workflowName || 'Workflow';
+            if (!workflow) {
+                return null;
+            }
+            const message = extractWorkflowInstallMessage(workflow);
+            if (!message) {
+                return null;
+            }
+            const name = workflow.name || workflow.workflowName || 'Workflow';
         const id = workflow.id || workflow.workflowId || workflow.workflow_id;
         return id ? { id, name, message } : null;
     };
 
     const entries = [];
-    const pendingFetchIds = new Set();
 
     workflowIds.forEach((workflowId) => {
         const cached = Array.isArray(state.workflowsData)
@@ -577,28 +588,8 @@ export async function collectWorkflowInstallMessages(workflowIds) {
             if (entry) {
                 entries.push(entry);
             }
-            if (!workflowDetailsCache.has(workflowId)) {
-                pendingFetchIds.add(workflowId);
-            }
-        } else {
-            pendingFetchIds.add(workflowId);
         }
     });
-
-    if (pendingFetchIds.size) {
-        pendingFetchIds.forEach((workflowId) => {
-            fetchWorkflowDetails(workflowId, { refresh: true })
-                .then((workflow) => {
-                    if (!workflow) {
-                        return;
-                    }
-                    cacheWorkflowModels(workflow);
-                })
-                .catch((error) => {
-                    console.warn('Nitra: Background workflow detail refresh failed', workflowId, error);
-                });
-        });
-    }
 
     return entries;
 }

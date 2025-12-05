@@ -6,6 +6,11 @@ import {
 } from '../auth/storage.js';
 
 let cachedIdentity = null;
+let identityPromise = null;
+let cachedRegistrations = null;
+let cachedRegistrationsTimestamp = 0;
+const REGISTRATIONS_CACHE_TTL_MS = 5 * 60 * 1000;
+let registrationsPromise = null;
 
 function buildAuthHeaders({ json = false } = {}) {
     const token = getActiveApiToken();
@@ -49,6 +54,10 @@ async function parseResponse(response) {
 
 export function invalidateDeviceIdentityCache() {
     cachedIdentity = null;
+    identityPromise = null;
+    cachedRegistrations = null;
+    cachedRegistrationsTimestamp = 0;
+    registrationsPromise = null;
 }
 
 function ensureDeviceRegistrationState() {
@@ -65,6 +74,8 @@ export function setDeviceRegistrationState(isRegistered) {
     const state = ensureDeviceRegistrationState();
     state.registered = typeof isRegistered === 'boolean' ? isRegistered : null;
     state.timestamp = Date.now();
+    cachedRegistrations = null;
+    cachedRegistrationsTimestamp = 0;
     if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('nitra:device-registration-state-changed', {
             detail: { registered: state.registered }
@@ -82,62 +93,91 @@ export async function getDeviceIdentity(forceRefresh = false) {
         return cachedIdentity;
     }
 
-    const response = await fetch('/nitra/device/identity');
-    if (!response.ok) {
-        throw new Error('Failed to collect device identity');
+    if (!forceRefresh && identityPromise) {
+        return identityPromise;
     }
 
-    const data = await response.json();
-    cachedIdentity = data;
-    return data;
+    identityPromise = (async () => {
+        const response = await fetch('/nitra/device/identity');
+        if (!response.ok) {
+            throw new Error('Failed to collect device identity');
+        }
+    
+        const data = await response.json();
+        cachedIdentity = data;
+        identityPromise = null;
+        return data;
+    })();
+
+    return identityPromise;
 }
 
-export async function fetchRegisteredDevices() {
+export async function fetchRegisteredDevices(identityOverride = null, options = {}) {
+    const { forceRefresh = false } = options;
     await ensureFreshAccessToken();
     const headers = buildAuthHeaders();
     if (!headers) {
         throw new Error('Authentication required');
     }
 
-    const identity = await getDeviceIdentity();
-
-    const response = await fetch('/nitra/device/registrations', { headers });
-    const data = await parseResponse(response);
-
-    if (!response.ok) {
-        const errorMessage = data?.error || 'Failed to load device registrations';
-        throw new Error(errorMessage);
+    const now = Date.now();
+    if (!forceRefresh && cachedRegistrations && (now - cachedRegistrationsTimestamp) < REGISTRATIONS_CACHE_TTL_MS) {
+        return cachedRegistrations;
     }
 
-    const devices = Array.isArray(data?.devices) ? data.devices : [];
-    const currentHash = identity?.fingerprint_hash || identity?.fingerprintHash;
-    const currentDevice = devices.find(device =>
-        currentHash && device.fingerprintHash && currentHash === device.fingerprintHash
-    );
-    const isRegistered = Boolean(currentDevice);
-    setDeviceRegistrationState(isRegistered);
+    if (!forceRefresh && registrationsPromise) {
+        return registrationsPromise;
+    }
 
-    if (!isRegistered) {
-        const hasFreeSlot = typeof data?.maxSlots === 'number'
-            ? devices.length < data.maxSlots
-            : true;
-        if (hasFreeSlot) {
-            try {
-                await registerCurrentDevice({
-                    mode: 'auto',
-                    clientTimestamp: new Date().toISOString(),
-                });
-                invalidateDeviceIdentityCache();
-                return fetchRegisteredDevices();
-            } catch (error) {
-                console.warn('Nitra: Auto-registration skipped', error?.message || error);
-            }
-        } else {
-            setDeviceRegistrationState(false);
+    const identity = identityOverride || await getDeviceIdentity();
+
+    const fetchPromise = (async () => {
+        const response = await fetch('/nitra/device/registrations', { headers });
+        const data = await parseResponse(response);
+
+        if (!response.ok) {
+            const errorMessage = data?.error || 'Failed to load device registrations';
+            throw new Error(errorMessage);
         }
-    }
 
-    return data;
+        const devices = Array.isArray(data?.devices) ? data.devices : [];
+        const currentHash = identity?.fingerprint_hash || identity?.fingerprintHash;
+        const currentDevice = devices.find(device =>
+            currentHash && device.fingerprintHash && currentHash === device.fingerprintHash
+        );
+        const isRegistered = Boolean(currentDevice);
+        setDeviceRegistrationState(isRegistered);
+
+        if (!isRegistered) {
+            const hasFreeSlot = typeof data?.maxSlots === 'number'
+                ? devices.length < data.maxSlots
+                : true;
+            if (hasFreeSlot) {
+                try {
+                    await registerCurrentDevice({
+                        mode: 'auto',
+                        clientTimestamp: new Date().toISOString(),
+                    });
+                    invalidateDeviceIdentityCache();
+                    return fetchRegisteredDevices(null, { forceRefresh: true });
+                } catch (error) {
+                    console.warn('Nitra: Auto-registration skipped', error?.message || error);
+                }
+            } else {
+                setDeviceRegistrationState(false);
+            }
+        }
+
+        cachedRegistrations = data;
+        cachedRegistrationsTimestamp = Date.now();
+        return data;
+    })();
+
+    registrationsPromise = fetchPromise.finally(() => {
+        registrationsPromise = null;
+    });
+
+    return registrationsPromise;
 }
 
 export async function registerCurrentDevice({
