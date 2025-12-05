@@ -355,10 +355,22 @@ export async function getExistingModels() {
     return new Set(); // Return empty set if check fails
 }
 
-export async function calculateTotalWorkflowSize(selectedWorkflowIds) {
+export async function calculateTotalWorkflowSize(selectedWorkflowIds, options = {}) {
+    const { forceRefreshCache = false } = options;
     let totalSize = 0;
     const uniqueModels = new Map(); // model_id -> model_data
     const existingModels = await getExistingModels();
+    if (forceRefreshCache) {
+        const hydrationPromises = [];
+        for (const workflowId of selectedWorkflowIds) {
+            if (!workflowModelCache.has(workflowId)) {
+                hydrationPromises.push(fetchWorkflowDetails(workflowId));
+            }
+        }
+        if (hydrationPromises.length) {
+            await Promise.allSettled(hydrationPromises);
+        }
+    }
 
     for (const workflowId of selectedWorkflowIds) {
         if (!workflowModelCache.has(workflowId)) {
@@ -398,23 +410,17 @@ export async function checkWorkflowsForHFTokenRequirement() {
     let requiresHFToken = false;
     
     for (const workflowId of state.selectedWorkflows) {
-        const workflow = await fetchWorkflowDetails(workflowId);
-        if (!workflow) {
-            continue;
-        }
-        
-        const dependencies = extractDynamoValue(workflow.dependencies);
-        const models = dependencies && dependencies.models;
-        if (models && Array.isArray(models)) {
-            for (const model of models) {
-                if (model && model.hfTokenRequired === true) {
-                    requiresHFToken = true;
-                    break;
-                }
+        if (!workflowModelCache.has(workflowId)) {
+            const workflow = await fetchWorkflowDetails(workflowId);
+            if (!workflow) {
+                continue;
             }
         }
-        
-        if (requiresHFToken) break;
+        const models = workflowModelCache.get(workflowId) || [];
+        if (models.some(model => model && model.hfTokenRequired === true)) {
+            requiresHFToken = true;
+            break;
+        }
     }
     
     return requiresHFToken;

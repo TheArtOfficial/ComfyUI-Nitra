@@ -909,6 +909,9 @@ export function renderWorkflows() {
                 : false
     );
     const workflowsForDisplay = sortWorkflowsForDisplay(filteredWorkflows);
+    if (state.selectedWorkflows.size > 0) {
+        updateWorkflowInstallButton({ forceWarmModelCache: true });
+    }
     
     // Check if any workflows are in preview mode
     const inPreviewMode = filteredWorkflows.some(w => w._previewMode);

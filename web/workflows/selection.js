@@ -120,7 +120,8 @@ function finishWorkflowLoadingState(button, container, token) {
     }
 }
 
-export async function updateWorkflowInstallButton() {
+export async function updateWorkflowInstallButton(options = {}) {
+    const { forceWarmModelCache = false } = options;
     const installBtn = document.getElementById('nitra-install-workflows-btn');
     const hfTokenContainer = document.getElementById('nitra-workflow-hf-token-container');
     const updateToken = ++workflowButtonUpdateToken;
@@ -166,7 +167,7 @@ export async function updateWorkflowInstallButton() {
     let workflowMessages = [];
     
     try {
-        sizeInfo = await calculateTotalWorkflowSize(Array.from(state.selectedWorkflows));
+        sizeInfo = await calculateTotalWorkflowSize(Array.from(state.selectedWorkflows), { forceRefreshCache: forceWarmModelCache });
         if (workflowButtonUpdateToken !== updateToken) {
             return;
         }
