@@ -5,6 +5,7 @@ import * as state from '../core/state.js';
 import { API_ENDPOINTS } from '../core/constants.js';
 import { updateLicenseStatusDisplay } from './ui.js';
 import { fetchRegisteredDevices } from '../device/api.js';
+import { logoutWebsite } from '../auth/logout.js';
 
 const LICENSE_CACHE_KEY = 'nitra_license_status';
 const LICENSE_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
@@ -76,12 +77,24 @@ export async function fetchLicenseStatus() {
         });
 
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Nitra: Subscription check failed:', {
-                status: response.status,
-                statusText: response.statusText,
-                error: errorText,
-            });
+            if (response.status === 401 || response.status === 403) {
+                console.warn('Nitra: Subscription check unauthorized, clearing cached session.');
+                clearLicenseCache();
+                state.setCurrentLicenseStatus(null);
+                updateLicenseStatusDisplay();
+                try {
+                    await logoutWebsite();
+                } catch (logoutError) {
+                    console.error('Nitra: Failed to logout after license auth failure', logoutError);
+                }
+            } else {
+                const errorText = await response.text();
+                console.error('Nitra: Subscription check failed:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    error: errorText,
+                });
+            }
             return null;
         }
 
