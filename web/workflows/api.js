@@ -457,26 +457,47 @@ export async function collectWorkflowInstallMessages(workflowIds) {
         return [];
     }
 
-    const details = await Promise.all(
-        workflowIds.map(async (workflowId) => {
-            const workflow = await fetchWorkflowDetails(workflowId);
-            if (!workflow) {
-                return null;
-            }
-            const message = extractWorkflowInstallMessage(workflow);
-            if (!message) {
-                return null;
-            }
-            const name = workflow.name || workflow.workflowName || 'Workflow';
-            return {
-                id: workflowId,
-                name,
-                message,
-            };
-        })
-    );
+    const buildEntry = (workflow) => {
+        if (!workflow) {
+            return null;
+        }
+        const message = extractWorkflowInstallMessage(workflow);
+        if (!message) {
+            return null;
+        }
+        const name = workflow.name || workflow.workflowName || 'Workflow';
+        return { id: workflow.id || workflow.workflowId || workflow.workflow_id, name, message };
+    };
 
-    return details.filter(Boolean);
+    const entries = [];
+    const pendingFetchIds = [];
+
+    workflowIds.forEach((workflowId) => {
+        const cached = Array.isArray(state.workflowsData)
+            ? state.workflowsData.find(w => w && (w.id === workflowId || w.workflowId === workflowId || w.workflow_id === workflowId))
+            : null;
+        const entry = buildEntry(cached);
+        if (entry) {
+            entries.push(entry);
+        } else {
+            pendingFetchIds.push(workflowId);
+        }
+    });
+
+    if (pendingFetchIds.length) {
+        const fetched = await Promise.all(
+            pendingFetchIds.map(async (workflowId) => {
+                const workflow = await fetchWorkflowDetails(workflowId);
+                if (workflow) {
+                    cacheWorkflowModels(workflow);
+                }
+                return buildEntry(workflow);
+            })
+        );
+        entries.push(...fetched.filter(Boolean));
+    }
+
+    return entries;
 }
 
 function clearMediaRefreshTimer() {
