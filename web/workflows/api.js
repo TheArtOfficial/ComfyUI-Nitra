@@ -371,9 +371,6 @@ export async function loadWorkflows(options = {}) {
     }
 
     if (!needsRefresh) {
-        if (backgroundRefresh) {
-            return fetchAndPersistWorkflows(hasSubscription, { silent: true, selectForWarmup });
-        }
         return true;
     }
 
