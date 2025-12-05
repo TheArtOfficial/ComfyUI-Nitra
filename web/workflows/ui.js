@@ -438,7 +438,7 @@ function updateCheckboxForWorkflow(workflowId, workflow) {
         } else {
             state.selectedWorkflows.delete(workflowId);
         }
-        updateWorkflowInstallButton();
+        updateWorkflowInstallButton({ forceWarmModelCache: true });
     };
 }
 
@@ -619,7 +619,7 @@ function setupSelectButtons(filteredWorkflows) {
                     }
                 });
             syncWorkflowCheckboxStates(filteredWorkflows);
-            updateWorkflowInstallButton();
+            updateWorkflowInstallButton({ forceWarmModelCache: true });
         };
     }
 
@@ -637,7 +637,7 @@ function setupSelectButtons(filteredWorkflows) {
                 });
             }
             syncWorkflowCheckboxStates(filteredWorkflows);
-            updateWorkflowInstallButton();
+            updateWorkflowInstallButton({ forceWarmModelCache: true });
         };
     }
 }
