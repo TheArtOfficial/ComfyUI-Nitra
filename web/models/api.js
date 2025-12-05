@@ -105,7 +105,7 @@ async function fetchAndPersistModels(hasSubscription, { silent } = {}) {
 }
 
 export async function loadModels(options = {}) {
-    const { backgroundRefresh = true } = options;
+    const { backgroundRefresh = true, force = false } = options;
     const cacheInfo = typeof state.getModelsCacheInfo === 'function' ? state.getModelsCacheInfo() : null;
     const hasCached = cacheInfo && Array.isArray(cacheInfo.data) && cacheInfo.data.length > 0;
     const modelsList = document.getElementById('nitra-models-list');
@@ -118,7 +118,7 @@ export async function loadModels(options = {}) {
         state.currentLicenseStatus &&
         (state.currentLicenseStatus.has_paid_subscription || state.currentLicenseStatus.status === 'paid');
 
-    const needsRefresh = shouldRefreshModels(cacheInfo, hasSubscription);
+    const needsRefresh = force || shouldRefreshModels(cacheInfo, hasSubscription);
 
     if (!state.currentUser || !state.currentUser.apiToken) {
         console.warn('Nitra: Cannot load models without an authenticated user');
@@ -127,12 +127,12 @@ export async function loadModels(options = {}) {
 
     if (!needsRefresh) {
         if (backgroundRefresh) {
-            return fetchAndPersistModels(hasSubscription, { silent: true });
+            fetchAndPersistModels(hasSubscription, { silent: true }).catch(() => {});
         }
         return true;
     }
 
-    return fetchAndPersistModels(hasSubscription, { silent: false });
+    return fetchAndPersistModels(hasSubscription, { silent: !backgroundRefresh });
 }
 
 

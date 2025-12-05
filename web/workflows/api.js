@@ -3,6 +3,7 @@
 
 import * as state from '../core/state.js';
 import { getWebsiteBaseUrl } from '../core/config.js';
+import { loadModels } from '../models/api.js';
 
 // Caches to avoid re-fetching workflow/subgraph data and installed models
 const workflowDetailsCache = new Map(); // workflowId -> workflow data (with dependencies)
@@ -167,6 +168,7 @@ async function fetchAndPersistWorkflows(hasSubscription, { silent } = {}) {
                 state.workflowsData.forEach(cacheWorkflowModels);
             }
             scheduleMediaRefresh(state.workflowsData);
+            loadModels({ backgroundRefresh: true }).catch(() => {});
 
             return true;
         } catch (error) {
