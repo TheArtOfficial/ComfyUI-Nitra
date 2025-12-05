@@ -472,31 +472,38 @@ export async function collectWorkflowInstallMessages(workflowIds) {
     };
 
     const entries = [];
-    const pendingFetchIds = [];
+    const pendingFetchIds = new Set();
 
     workflowIds.forEach((workflowId) => {
         const cached = Array.isArray(state.workflowsData)
             ? state.workflowsData.find(w => w && (w.id === workflowId || w.workflowId === workflowId || w.workflow_id === workflowId))
             : null;
-        const entry = buildEntry(cached);
-        if (entry) {
-            entries.push(entry);
+        if (cached) {
+            const entry = buildEntry(cached);
+            if (entry) {
+                entries.push(entry);
+            }
+            if (!workflowDetailsCache.has(workflowId)) {
+                pendingFetchIds.add(workflowId);
+            }
         } else {
-            pendingFetchIds.push(workflowId);
+            pendingFetchIds.add(workflowId);
         }
     });
 
-    if (pendingFetchIds.length) {
-        const fetched = await Promise.all(
-            pendingFetchIds.map(async (workflowId) => {
-                const workflow = await fetchWorkflowDetails(workflowId);
-                if (workflow) {
+    if (pendingFetchIds.size) {
+        pendingFetchIds.forEach((workflowId) => {
+            fetchWorkflowDetails(workflowId, { refresh: true })
+                .then((workflow) => {
+                    if (!workflow) {
+                        return;
+                    }
                     cacheWorkflowModels(workflow);
-                }
-                return buildEntry(workflow);
-            })
-        );
-        entries.push(...fetched.filter(Boolean));
+                })
+                .catch((error) => {
+                    console.warn('Nitra: Background workflow detail refresh failed', workflowId, error);
+                });
+        });
     }
 
     return entries;
