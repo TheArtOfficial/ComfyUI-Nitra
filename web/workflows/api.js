@@ -71,8 +71,9 @@ function clearWorkflowCaches() {
 function seedWorkflowCache(workflows) {
     if (!Array.isArray(workflows)) return;
     workflows.forEach(workflow => {
-        if (workflow && workflow.id && workflow.dependencies) {
+        if (workflow && workflow.id) {
             workflowDetailsCache.set(workflow.id, workflow);
+            cacheWorkflowModels(workflow);
         }
     });
 }
@@ -256,7 +257,7 @@ function cacheWorkflowModels(workflow) {
 }
 
 export async function fetchWorkflowDetails(workflowId, options = {}) {
-    const { refresh = false } = options;
+    const { refresh = false, mediaOnly = false } = options;
 
     // Return cached workflow if we already have dependencies for it
     if (!refresh && workflowDetailsCache.has(workflowId)) {
@@ -266,7 +267,7 @@ export async function fetchWorkflowDetails(workflowId, options = {}) {
     // Try to find it in the workflows list loaded earlier
     if (!refresh) {
         const fromState = Array.isArray(state.workflowsData)
-            ? state.workflowsData.find(w => w && w.id === workflowId && w.dependencies)
+            ? state.workflowsData.find(w => w && w.id === workflowId && (!mediaOnly || w.dependencies))
             : null;
         if (fromState) {
             workflowDetailsCache.set(workflowId, fromState);
@@ -466,7 +467,8 @@ export async function collectWorkflowInstallMessages(workflowIds) {
             return null;
         }
         const name = workflow.name || workflow.workflowName || 'Workflow';
-        return { id: workflow.id || workflow.workflowId || workflow.workflow_id, name, message };
+        const id = workflow.id || workflow.workflowId || workflow.workflow_id;
+        return id ? { id, name, message } : null;
     };
 
     const entries = [];

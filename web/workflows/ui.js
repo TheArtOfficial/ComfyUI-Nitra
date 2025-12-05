@@ -961,7 +961,7 @@ async function hydrateWorkflowMedia(workflowId, workflow, cardElement) {
         try {
             // console.debug('Nitra: Starting hydration for workflow', workflowId);
             // Force refresh from server to get fresh presigned URLs
-            const details = await fetchWorkflowDetails(workflowId, { refresh: true });
+            const details = await fetchWorkflowDetails(workflowId, { refresh: true, mediaOnly: true });
             
             if (!details) {
                 // console.warn('Nitra: Hydration failed - No details returned for', workflowId);
