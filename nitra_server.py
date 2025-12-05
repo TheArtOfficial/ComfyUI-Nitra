@@ -1912,7 +1912,6 @@ async def get_models(request):
         response.raise_for_status()
         
         models_data = response.json()
-        logger.info("Nitra: Models fetched successfully")
         
         return web.json_response(models_data)
         

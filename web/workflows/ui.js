@@ -4,8 +4,6 @@
 import * as state from '../core/state.js';
 import { getWebsiteBaseUrl } from '../core/config.js';
 import { updateWorkflowInstallButton } from './selection.js';
-import { fetchWorkflowDetails } from './api.js';
-
 let workflowCategoryFilter = 'all';
 const WORKFLOW_VERSION_KEYS = [
     'updated_at',
@@ -20,8 +18,6 @@ const WORKFLOW_VERSION_KEYS = [
 ];
 const WORKFLOW_RENDER_BATCH_SIZE = 12;
 const workflowCardCache = new Map();
-const workflowMediaHydration = new Map();
-const workflowMediaBuffer = new Map();
 let workflowRenderToken = 0;
 let workflowIdFallbackCounter = 0;
 let workflowSortOption = 'name-asc';
@@ -34,43 +30,6 @@ const WORKFLOW_CREATED_KEYS = [
     'createdISO',
     'workflow_created_at'
 ];
-
-// Hydration queue to limit concurrent requests
-const pendingHydrationQueue = [];
-let activeHydrationRequests = 0;
-const MAX_CONCURRENT_HYDRATIONS = 4;
-
-function processHydrationQueue() {
-    if (activeHydrationRequests >= MAX_CONCURRENT_HYDRATIONS || pendingHydrationQueue.length === 0) {
-        return;
-    }
-
-    const task = pendingHydrationQueue.shift();
-    activeHydrationRequests++;
-
-    task().finally(() => {
-        activeHydrationRequests--;
-        processHydrationQueue();
-    });
-}
-
-const hydrationObserver = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            const card = entry.target;
-            const workflowId = card.dataset.workflowId;
-            if (workflowId) {
-                const workflow = state.workflowsData.find(w => resolveWorkflowId(w) === workflowId);
-                if (workflow && !workflowHasDisplayableMedia(workflow)) {
-                    // Queue the hydration instead of firing immediately
-                    pendingHydrationQueue.push(() => hydrateWorkflowMedia(workflowId, workflow, card));
-                    processHydrationQueue();
-                }
-            }
-            hydrationObserver.unobserve(card);
-        }
-    });
-}, { rootMargin: '200px' }) : null;
 
 function scheduleWorkflowBatch(callback) {
     if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
@@ -465,7 +424,6 @@ function removeStaleWorkflowCards(container, desiredIds) {
             }
             workflowCardCache.delete(id);
             sliderCache.delete(id);
-            workflowMediaHydration.delete(id); // Cancel pending hydration if removed
         }
     });
 }
@@ -514,10 +472,6 @@ function updateWorkflowsGrid(container, workflows, onComplete) {
 
             if (cached && cached.version === version && cached.mediaSignature === mediaSignature) {
                 ensureCardPosition(container, cached.node, index);
-                // Even if cached, check if we need to observe for hydration (if it was somehow reset or missed)
-                if (!workflowHasDisplayableMedia(workflow) && hydrationObserver) {
-                    hydrationObserver.observe(cached.node);
-                }
                 continue;
             }
 
@@ -539,17 +493,7 @@ function updateWorkflowsGrid(container, workflows, onComplete) {
                 mediaSignature
             });
 
-            if (!workflowHasDisplayableMedia(workflow)) {
-                // Use IntersectionObserver for lazy hydration
-                if (hydrationObserver) {
-                    hydrationObserver.observe(cardElement);
-                } else {
-                    // Fallback if no Observer
-                    hydrateWorkflowMedia(workflowId, workflow, cardElement);
-                }
-            } else {
-                workflowMediaBuffer.set(workflowId, workflow.media.map(item => ({ ...item })));
-            }
+            // Media is rendered directly from metadata; no additional hydration step.
         }
 
         if (index < workflows.length) {
@@ -950,63 +894,6 @@ export function renderWorkflows() {
     }
     
     setupSelectButtons(workflowsForDisplay);
-    restoreBufferedMedia();
-}
-
-async function hydrateWorkflowMedia(workflowId, workflow, cardElement) {
-    if (!workflowId || workflowMediaHydration.has(workflowId)) {
-        return;
-    }
-    const hydrationPromise = (async () => {
-        try {
-            // console.debug('Nitra: Starting hydration for workflow', workflowId);
-            // Force refresh from server to get fresh presigned URLs
-            const details = await fetchWorkflowDetails(workflowId, { refresh: true, mediaOnly: true });
-            if (!details || !workflowHasDisplayableMedia(details)) {
-                return;
-            }
-            workflow.media = details.media;
-            workflowMediaBuffer.set(workflowId, details.media.map(item => ({ ...item })));
-            cardElement.innerHTML = createWorkflowCardElement(workflow).innerHTML;
-            attachWorkflowMediaCompareListeners();
-            updateCheckboxForWorkflow(workflowId, workflow);
-        } catch (error) {
-            console.warn('Nitra: Failed to hydrate workflow media', workflowId, error);
-        } finally {
-            workflowMediaHydration.delete(workflowId);
-        }
-    })();
-
-    workflowMediaHydration.set(workflowId, hydrationPromise);
-}
-
-function restoreBufferedMedia() {
-    if (!Array.isArray(state.workflowsData)) {
-        return;
-    }
-    state.workflowsData.forEach((workflow, index) => {
-        const workflowId = resolveWorkflowId(workflow);
-        if (!workflowId) {
-            return;
-        }
-        if (workflowHasDisplayableMedia(workflow)) {
-            return;
-        }
-        const bufferedMedia = workflowMediaBuffer.get(workflowId);
-        if (!bufferedMedia || !bufferedMedia.length) {
-            return;
-        }
-        const updatedWorkflow = {
-            ...workflow,
-            media: bufferedMedia.map(item => ({ ...item })),
-        };
-        state.workflowsData[index] = updatedWorkflow;
-        const cacheEntry = workflowCardCache.get(workflowId);
-        if (cacheEntry) {
-            cacheEntry.version = computeWorkflowVersion(updatedWorkflow);
-            cacheEntry.mediaSignature = computeMediaSignature(updatedWorkflow);
-        }
-    });
 }
 
 

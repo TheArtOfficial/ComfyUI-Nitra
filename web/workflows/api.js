@@ -135,7 +135,15 @@ async function fetchAndPersistWorkflows(hasSubscription, { silent } = {}) {
                         // If timestamps match (and are valid), preserve heavy data
                         if (newTime > 0 && newTime === oldTime) {
                              if (Array.isArray(oldItem.media) && oldItem.media.length > 0) {
-                                 newItem.media = oldItem.media.map(m => ({...m}));
+                                 const now = Date.now();
+                                 const hasExpired = oldItem.media.some(m => {
+                                     const exp = m.fileUrlExpiresAt || m.file_url_expires_at;
+                                     // 5 minute buffer: if it expires within 5 mins (or is already expired), treat as expired
+                                     return exp && (Date.parse(exp) < now + 5 * 60 * 1000); 
+                                 });
+                                 if (!hasExpired) {
+                                    newItem.media = oldItem.media.map(m => ({...m}));
+                                 }
                              }
                              if (oldItem.dependencies) {
                                  newItem.dependencies = oldItem.dependencies;
@@ -381,6 +389,23 @@ export async function loadWorkflows(options = {}) {
     return fetchAndPersistWorkflows(hasSubscription, { silent: backgroundRefresh, selectForWarmup });
 }
 
+export async function ensureWorkflowsDataReady(options = {}) {
+    const { force = false } = options;
+    if (!force && Array.isArray(state.workflowsData) && state.workflowsData.length > 0) {
+        return true;
+    }
+    if (workflowsFetchPromise) {
+        try {
+            await workflowsFetchPromise;
+        } catch (error) {
+            console.warn('Nitra: workflow metadata fetch failed', error);
+        }
+        return Array.isArray(state.workflowsData) && state.workflowsData.length > 0;
+    }
+    await loadWorkflows({ backgroundRefresh: false, force: true });
+    return Array.isArray(state.workflowsData) && state.workflowsData.length > 0;
+}
+
 export async function getExistingModels() {
     const now = Date.now();
     if (existingModelsCache && (now - existingModelsCacheTimestamp) < EXISTING_MODELS_CACHE_TTL_MS) {
@@ -431,14 +456,12 @@ export async function calculateTotalWorkflowSize(selectedWorkflowIds, options = 
         if (!workflowModelCache.has(workflowId)) {
             if (!forceRefreshCache) {
                 ensureWorkflowCachedFromState(workflowId);
-            }
-            if (!workflowModelCache.has(workflowId)) {
-                if (forceRefreshCache) {
-                    const workflow = await fetchWorkflowDetails(workflowId);
-                    if (!workflow) {
-                        continue;
-                    }
-                } else {
+                if (!workflowModelCache.has(workflowId)) {
+                    continue;
+                }
+            } else {
+                const workflow = await fetchWorkflowDetails(workflowId);
+                if (!workflow) {
                     continue;
                 }
             }

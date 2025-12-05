@@ -6,7 +6,7 @@ import { getWebsiteBaseUrl } from '../core/config.js';
 import { formatLicenseStatus, fetchLicenseStatus, initializeLicenseStatus } from '../license/status.js';
 import { logoutWebsite } from '../auth/logout.js';
 import { updateListHeights } from './layout.js';
-import { loadWorkflows, checkWorkflowsForHFTokenRequirement, isWorkflowsFetchInFlight } from '../workflows/api.js';
+import { loadWorkflows, checkWorkflowsForHFTokenRequirement, isWorkflowsFetchInFlight, ensureWorkflowsDataReady } from '../workflows/api.js';
 import { renderWorkflows } from '../workflows/ui.js';
 import { updateWorkflowInstallButton } from '../workflows/selection.js';
 import { pollForWorkflowCompletion, cancelWorkflowInstall, resetWorkflowInstallButton } from '../workflows/installation.js';
@@ -1002,23 +1002,35 @@ export function createUpdateInterface() {
         });
 
         if (normalizedTab === 'workflows') {
-            const doRender = () => {
-                // Check if we have data in memory OR can hydrate from cache
-                // Note: hydrateWorkflowsFromCache returns false if data is already in memory, so we check workflowsData length too
-                const hasDataInMemory = Array.isArray(state.workflowsData) && state.workflowsData.length > 0;
-                const hydrated = typeof state.hydrateWorkflowsFromCache === 'function' && state.hydrateWorkflowsFromCache();
-                const hasCache = hasDataInMemory || hydrated;
-                
-                // Only render immediately if we have data, otherwise keep the "Loading..." placeholder
-                if (hasCache && typeof renderWorkflows === 'function') {
+            const workflowsList = document.getElementById('nitra-workflows-list');
+            if (workflowsList) {
+                workflowsList.style.visibility = 'visible';
+            }
+            const doRender = async () => {
+                const workflowsList = document.getElementById('nitra-workflows-list');
+                const hadCachedData = Array.isArray(state.workflowsData) && state.workflowsData.length > 0;
+                if (!hadCachedData && workflowsList) {
+                    workflowsList.innerHTML = `
+                        <div class="nitra-centered-placeholder" style="
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            height: 100%;
+                            color: var(--comfy-input-text);
+                            font-size: 1.1em;
+                        ">Loading workflows...</div>
+                    `;
+                }
+                const ready = typeof ensureWorkflowsDataReady === 'function'
+                    ? await ensureWorkflowsDataReady()
+                    : true;
+                if (ready && typeof renderWorkflows === 'function') {
                     renderWorkflows();
                 }
-
-                const hasCachedWorkflows = Array.isArray(state.workflowsData) && state.workflowsData.length > 0;
                 const fetchInFlight = typeof isWorkflowsFetchInFlight === 'function' && isWorkflowsFetchInFlight();
-                if (typeof loadWorkflows === 'function' && !hasCachedWorkflows && !fetchInFlight) {
-                    loadWorkflows({ backgroundRefresh: true, force: true }).then(success => {
-                        if (typeof renderWorkflows === 'function') {
+                if (hadCachedData && typeof loadWorkflows === 'function' && !fetchInFlight) {
+                    loadWorkflows({ backgroundRefresh: true, force: false }).then(success => {
+                        if (success && typeof renderWorkflows === 'function') {
                             renderWorkflows();
                         }
                     });
@@ -1027,12 +1039,30 @@ export function createUpdateInterface() {
 
             // Only wait for license check if it's the very first load
             if (!deviceSectionInitialized && licenseCheckPromise && typeof licenseCheckPromise.then === 'function') {
-                licenseCheckPromise.finally(doRender);
+                licenseCheckPromise.finally(() => { doRender(); });
             } else {
                 doRender();
             }
         } else if (normalizedTab === 'models') {
+            const modelList = document.getElementById('nitra-models-list');
+            if (modelList) {
+                modelList.style.visibility = 'visible';
+            }
             const doRender = () => {
+                const modelList = document.getElementById('nitra-models-list');
+                const hasCached = Array.isArray(state.modelsData) && state.modelsData.length > 0;
+                if (!hasCached && modelList) {
+                    modelList.innerHTML = `
+                        <div class="nitra-centered-placeholder" style="
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            height: 100%;
+                            color: var(--comfy-input-text);
+                            font-size: 1.1em;
+                        ">Loading models...</div>
+                    `;
+                }
                 if (typeof renderModels === 'function') {
                     renderModels();
                 }
