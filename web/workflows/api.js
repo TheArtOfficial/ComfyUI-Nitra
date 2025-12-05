@@ -160,7 +160,7 @@ async function fetchAndPersistWorkflows(hasSubscription, { silent } = {}) {
                 seedWorkflowCache(data);
                 state.setWorkflowsData(data, { mode });
             } else {
-                state.setWorkflowsData(state.workflowsData, { mode });
+                state.setWorkflowsData(data, { mode });
             }
             if (Array.isArray(state.workflowsData)) {
                 state.workflowsData.forEach(cacheWorkflowModels);
