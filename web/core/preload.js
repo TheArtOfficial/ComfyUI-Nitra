@@ -11,8 +11,8 @@ async function runPrefetch() {
     }
     await fetchLicenseStatus().catch(() => null);
     await getExistingModels().catch(() => null);
-    await loadWorkflows({ backgroundRefresh: true, force: true }).catch(() => null);
-    await loadModels({ backgroundRefresh: true, force: true }).catch(() => null);
+    await loadWorkflows({ backgroundRefresh: true, force: false }).catch(() => null);
+    await loadModels({ backgroundRefresh: true, force: false }).catch(() => null);
 }
 
 export function ensureDataPrefetch() {
