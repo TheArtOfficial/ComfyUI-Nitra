@@ -61,18 +61,18 @@ export function clearLicenseCache() {
 }
 
 async function requestSubscriptionStatus() {
-    const response = await fetch(API_ENDPOINTS.licenseStatus, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${state.currentUser.apiToken}`,
-        },
-        body: JSON.stringify({
-            userId: state.currentUser.id,
-        }),
-    });
+        const response = await fetch(API_ENDPOINTS.licenseStatus, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${state.currentUser.apiToken}`,
+            },
+            body: JSON.stringify({
+                userId: state.currentUser.id,
+            }),
+        });
 
-    if (!response.ok) {
+        if (!response.ok) {
         let errorBody;
         try {
             errorBody = await response.text();
@@ -91,14 +91,14 @@ async function requestSubscriptionStatus() {
 
 async function handleSubscriptionFailure(error) {
     console.error('Nitra: Subscription check failed after retry', error);
-    clearLicenseCache();
-    state.setCurrentLicenseStatus(null);
-    updateLicenseStatusDisplay();
-    try {
-        await logoutWebsite();
-    } catch (logoutError) {
+                clearLicenseCache();
+                state.setCurrentLicenseStatus(null);
+                updateLicenseStatusDisplay();
+                try {
+                    await logoutWebsite();
+                } catch (logoutError) {
         console.error('Nitra: Failed to logout after subscription failure', logoutError);
-    }
+                }
     try {
         await showNitraSplash();
     } catch (dialogError) {
@@ -108,8 +108,8 @@ async function handleSubscriptionFailure(error) {
 
 export async function fetchLicenseStatus() {
     if (!state.isAuthenticated || !state.currentUser || !state.currentUser.apiToken) {
-        return null;
-    }
+            return null;
+        }
 
     let attempt = 0;
     let lastError = null;
@@ -117,10 +117,10 @@ export async function fetchLicenseStatus() {
     while (attempt < 2) {
         try {
             const subscriptionData = await requestSubscriptionStatus();
-            persistLicenseCache(subscriptionData);
-            await applyLicenseStatus(subscriptionData);
-            return subscriptionData;
-        } catch (error) {
+        persistLicenseCache(subscriptionData);
+        await applyLicenseStatus(subscriptionData);
+        return subscriptionData;
+    } catch (error) {
             lastError = error;
             attempt += 1;
 
@@ -140,8 +140,8 @@ export async function fetchLicenseStatus() {
             }
 
             await handleSubscriptionFailure(lastError);
-            return null;
-        }
+        return null;
+    }
     }
 
     return null;
