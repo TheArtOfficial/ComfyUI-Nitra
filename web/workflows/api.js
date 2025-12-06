@@ -12,7 +12,15 @@ let existingModelsCache = null; // array of installed model IDs
 let existingModelsCacheTimestamp = 0;
 const EXISTING_MODELS_CACHE_TTL_MS = 60 * 1000; // 1 minute
 let workflowsFetchPromise = null;
+let workflowsFetchController = null;
 let workflowsFetchSilent = true;
+
+export function cancelWorkflowsFetch() {
+    if (workflowsFetchController) {
+        workflowsFetchController.abort();
+        workflowsFetchController = null;
+    }
+}
 const MEDIA_REFRESH_SAFETY_MS = 2 * 60 * 1000;
 let mediaRefreshTimer = null;
 
@@ -98,6 +106,12 @@ async function fetchAndPersistWorkflows(hasSubscription, { silent } = {}) {
     workflowsFetchSilent = silent;
     workflowsFetchPromise = (async () => {
         try {
+            if (workflowsFetchController) {
+                workflowsFetchController.abort();
+            }
+            workflowsFetchController = new AbortController();
+            const signal = workflowsFetchController.signal;
+
             // Always use metadata endpoint for initial load to ensure fast response time
             // Full details (media, signed URLs, dependencies) will be hydrated lazily via IntersectionObserver
             const endpoint = '/nitra/workflows-metadata';
@@ -109,6 +123,7 @@ async function fetchAndPersistWorkflows(hasSubscription, { silent } = {}) {
                     'Content-Type': 'application/json',
                     'X-User-Email': state.currentUser.email,
                 },
+                signal,
             });
 
             if (!response.ok) {
@@ -192,6 +207,9 @@ async function fetchAndPersistWorkflows(hasSubscription, { silent } = {}) {
 
             return true;
         } catch (error) {
+            if (error.name === 'AbortError') {
+                return false;
+            }
             if (workflowsFetchSilent) {
                 console.warn('Nitra: Background workflow refresh failed', error);
             } else {
@@ -204,6 +222,7 @@ async function fetchAndPersistWorkflows(hasSubscription, { silent } = {}) {
             return false;
         } finally {
             workflowsFetchPromise = null;
+            workflowsFetchController = null;
             workflowsFetchSilent = true;
         }
     })();

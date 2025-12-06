@@ -4,7 +4,15 @@
 import * as state from '../core/state.js';
 
 let modelsFetchPromise = null;
+let modelsFetchController = null;
 let modelsFetchSilent = true;
+
+export function cancelModelsFetch() {
+    if (modelsFetchController) {
+        modelsFetchController.abort();
+        modelsFetchController = null;
+    }
+}
 
 function shouldRefreshModels(cacheInfo, hasSubscription) {
     if (!cacheInfo) {
@@ -37,6 +45,12 @@ async function fetchAndPersistModels(hasSubscription, { silent } = {}) {
     modelsFetchSilent = silent;
     modelsFetchPromise = (async () => {
         try {
+            if (modelsFetchController) {
+                modelsFetchController.abort();
+            }
+            modelsFetchController = new AbortController();
+            const signal = modelsFetchController.signal;
+
             let endpoint;
             let previewMode;
             if (hasSubscription) {
@@ -53,6 +67,7 @@ async function fetchAndPersistModels(hasSubscription, { silent } = {}) {
                     'Content-Type': 'application/json',
                     'X-User-Email': state.currentUser.email,
                 },
+                signal,
             });
 
             if (!response.ok) {
@@ -85,6 +100,9 @@ async function fetchAndPersistModels(hasSubscription, { silent } = {}) {
 
             return true;
         } catch (error) {
+            if (error.name === 'AbortError') {
+                return false;
+            }
             if (modelsFetchSilent) {
                 console.warn('Nitra: Background model refresh failed', error);
             } else {
@@ -97,6 +115,7 @@ async function fetchAndPersistModels(hasSubscription, { silent } = {}) {
             return false;
         } finally {
             modelsFetchPromise = null;
+            modelsFetchController = null;
             modelsFetchSilent = true;
         }
     })();

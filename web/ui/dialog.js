@@ -5,6 +5,8 @@ import * as state from '../core/state.js';
 import { createLoginForm } from './loginForm.js';
 import { createUpdateInterface } from './updateInterface.js';
 import { createCloseButton } from './components/CloseButton.js';
+import { cancelWorkflowsFetch } from '../workflows/api.js';
+import { cancelModelsFetch } from '../models/api.js';
 
 export function createSplashDialog() {
     const dialog = document.createElement("div");
@@ -129,6 +131,9 @@ export function createSplashDialog() {
         if (dialog.parentElement) {
             dialog.parentElement.removeChild(dialog);
             state.setNitraDialog(null);
+            // Cancel any ongoing fetches to free up resources
+            cancelWorkflowsFetch();
+            cancelModelsFetch();
         }
     };
     
