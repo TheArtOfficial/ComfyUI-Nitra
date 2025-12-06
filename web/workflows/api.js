@@ -167,14 +167,22 @@ async function fetchAndPersistWorkflows(hasSubscription, { silent } = {}) {
                 !previousVersion ||
                 !newVersion ||
                 previousVersion !== newVersion ||
-                (cacheInfo && cacheInfo.mode !== mode);
+                (cacheInfo && cacheInfo.mode !== mode) ||
+                (cacheInfo && cacheInfo.isExpired) ||
+                (() => {
+                    const userId = state.currentUser?.id || state.currentUser?.email || null;
+                    if (!userId) return false;
+                    return cacheInfo?.authUser && cacheInfo.authUser !== userId;
+                })();
 
             if (versionChanged) {
                 clearWorkflowCaches();
                 seedWorkflowCache(data);
-                state.setWorkflowsData(data, { mode });
+                const userId = state.currentUser?.id || state.currentUser?.email || null;
+                state.setWorkflowsData(data, { mode, user: userId });
             } else {
-                state.setWorkflowsData(data, { mode });
+                const userId = state.currentUser?.id || state.currentUser?.email || null;
+                state.setWorkflowsData(data, { mode, user: userId });
             }
             if (Array.isArray(state.workflowsData)) {
                 state.workflowsData.forEach(cacheWorkflowModels);

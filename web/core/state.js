@@ -74,8 +74,9 @@ function buildCacheInfo(record) {
     const version = typeof record?.version === 'number' ? record.version : null;
     const timestamp = typeof record?.timestamp === 'number' ? record.timestamp : 0;
     const mode = typeof record?.mode === 'string' ? record.mode : CACHE_DEFAULT_MODE;
+    const authUser = typeof record?.authUser === 'string' ? record.authUser : null;
     const isExpired = !timestamp || (Date.now() - timestamp > CACHE_TTL_MS);
-    return { data, version, timestamp, mode, isExpired };
+    return { data, version, timestamp, mode, authUser, isExpired };
 }
 
 function createInitialCacheInfo(key) {
@@ -88,6 +89,7 @@ function createInitialCacheInfo(key) {
         version: null,
         timestamp: 0,
         mode: CACHE_DEFAULT_MODE,
+        authUser: null,
         isExpired: true,
     };
 }
@@ -101,6 +103,7 @@ function persistCache(key, info) {
             timestamp: info.timestamp || Date.now(),
             version: typeof info.version === 'number' ? info.version : null,
             mode: info.mode || CACHE_DEFAULT_MODE,
+            authUser: typeof info.authUser === 'string' ? info.authUser : null,
             data: Array.isArray(info.data) ? info.data : [],
         };
         window.localStorage.setItem(key, JSON.stringify(payload));
@@ -139,11 +142,13 @@ export function setWorkflowsData(data, options = {}) {
     const version = computeLatestTimestamp(workflowsData);
     const timestamp = Date.now();
     const mode = options.mode === 'preview' ? 'preview' : CACHE_DEFAULT_MODE;
+    const authUser = typeof options.user === 'string' ? options.user : null;
     workflowsCacheInfo = {
         data: workflowsData,
         version,
         timestamp,
         mode,
+        authUser,
         isExpired: false,
     };
     persistCache(WORKFLOWS_CACHE_KEY, workflowsCacheInfo);
