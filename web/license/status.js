@@ -6,6 +6,7 @@ import { API_ENDPOINTS } from '../core/constants.js';
 import { updateLicenseStatusDisplay } from './ui.js';
 import { fetchRegisteredDevices } from '../device/api.js';
 import { logoutWebsite } from '../auth/logout.js';
+import { showNitraSplash } from '../ui/splash.js';
 
 const LICENSE_CACHE_KEY = 'nitra_license_status';
 const LICENSE_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
@@ -59,53 +60,91 @@ export function clearLicenseCache() {
     window.localStorage.removeItem(LICENSE_CACHE_KEY);
 }
 
+async function requestSubscriptionStatus() {
+    const response = await fetch(API_ENDPOINTS.licenseStatus, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${state.currentUser.apiToken}`,
+        },
+        body: JSON.stringify({
+            userId: state.currentUser.id,
+        }),
+    });
+
+    if (!response.ok) {
+        let errorBody;
+        try {
+            errorBody = await response.text();
+        } catch (readError) {
+            console.warn('Nitra: Unable to read subscription error body', readError);
+        }
+        const error = new Error(`Subscription check failed with status ${response.status}`);
+        error.status = response.status;
+        error.statusText = response.statusText;
+        error.body = errorBody;
+        throw error;
+    }
+
+    return response.json();
+}
+
+async function handleSubscriptionFailure(error) {
+    console.error('Nitra: Subscription check failed after retry', error);
+    clearLicenseCache();
+    state.setCurrentLicenseStatus(null);
+    updateLicenseStatusDisplay();
+    try {
+        await logoutWebsite();
+    } catch (logoutError) {
+        console.error('Nitra: Failed to logout after subscription failure', logoutError);
+    }
+    try {
+        await showNitraSplash();
+    } catch (dialogError) {
+        console.error('Nitra: Failed to show login screen after logout', dialogError);
+    }
+}
+
 export async function fetchLicenseStatus() {
     if (!state.isAuthenticated || !state.currentUser || !state.currentUser.apiToken) {
         return null;
     }
 
-    try {
-        const response = await fetch(API_ENDPOINTS.licenseStatus, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${state.currentUser.apiToken}`,
-            },
-            body: JSON.stringify({
-                userId: state.currentUser.id,
-            }),
-        });
+    let attempt = 0;
+    let lastError = null;
 
-        if (!response.ok) {
-            if (response.status === 401 || response.status === 403) {
-                console.warn('Nitra: Subscription check unauthorized, clearing cached session.');
-                clearLicenseCache();
-                state.setCurrentLicenseStatus(null);
-                updateLicenseStatusDisplay();
-                try {
-                    await logoutWebsite();
-                } catch (logoutError) {
-                    console.error('Nitra: Failed to logout after license auth failure', logoutError);
-                }
-            } else {
-                const errorText = await response.text();
-                console.error('Nitra: Subscription check failed:', {
-                    status: response.status,
-                    statusText: response.statusText,
-                    error: errorText,
+    while (attempt < 2) {
+        try {
+            const subscriptionData = await requestSubscriptionStatus();
+            persistLicenseCache(subscriptionData);
+            await applyLicenseStatus(subscriptionData);
+            return subscriptionData;
+        } catch (error) {
+            lastError = error;
+            attempt += 1;
+
+            if (error?.status === 401 || error?.status === 403) {
+                console.warn('Nitra: Subscription check unauthorized.', {
+                    status: error.status,
+                    statusText: error.statusText,
+                    body: error.body,
                 });
+            } else {
+                console.error('Nitra: Subscription check error:', error);
             }
+
+            if (attempt < 2) {
+                console.warn('Nitra: Retrying subscription check once after failure.');
+                continue;
+            }
+
+            await handleSubscriptionFailure(lastError);
             return null;
         }
-
-        const subscriptionData = await response.json();
-        persistLicenseCache(subscriptionData);
-        await applyLicenseStatus(subscriptionData);
-        return subscriptionData;
-    } catch (error) {
-        console.error('Nitra: Error fetching subscription status:', error);
-        return null;
     }
+
+    return null;
 }
 
 async function applyLicenseStatus(subscriptionData) {
