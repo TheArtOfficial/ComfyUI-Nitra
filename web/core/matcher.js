@@ -291,7 +291,12 @@ export function matchModels(detectedFiles, availableModels, installedModelNames 
     const matches = [];
     const missing = [];
 
-    detectedFiles.forEach(filename => {
+    // Handle both old format (array of strings) and new format (array of {filename, originalPath})
+    detectedFiles.forEach(fileEntry => {
+        // Support both formats: string or {filename, originalPath} object
+        const filename = typeof fileEntry === 'string' ? fileEntry : fileEntry.filename;
+        const originalPath = typeof fileEntry === 'string' ? fileEntry : fileEntry.originalPath;
+        
         let bestMatch = null;
         let bestScore = 0;
         const filenameLower = filename.toLowerCase();
@@ -307,6 +312,7 @@ export function matchModels(detectedFiles, availableModels, installedModelNames 
                 matchType: 'Exact', 
                 score: 1.0, 
                 detectedName: filename,
+                originalPath: originalPath,  // Keep original path for workflow fixing
                 isInstalled: isModelInstalled(filename, exactMatch.modelName, installedModelNames),
                 hfTokenRequired: exactMatch.hfTokenRequired,
                 url: exactMatch.url || exactMatch.modelUrl || exactMatch.fileUrl || exactMatch.downloadUrl || exactMatch.href || ''
@@ -324,6 +330,7 @@ export function matchModels(detectedFiles, availableModels, installedModelNames 
                 matchType: 'Exact', 
                 score: 1.0, 
                 detectedName: filename,
+                originalPath: originalPath,  // Keep original path for workflow fixing
                 isInstalled: isModelInstalled(filename, exactNoExtMatch.modelName, installedModelNames),
                 hfTokenRequired: exactNoExtMatch.hfTokenRequired,
                 url: exactNoExtMatch.url || exactNoExtMatch.modelUrl || exactNoExtMatch.fileUrl || exactNoExtMatch.downloadUrl || exactNoExtMatch.href || ''
@@ -365,6 +372,7 @@ export function matchModels(detectedFiles, availableModels, installedModelNames 
                 matchType: 'Similar', 
                 score: bestScore,
                 detectedName: filename,
+                originalPath: originalPath,  // Keep original path for workflow fixing
                 isInstalled: isModelInstalled(filename, bestMatch.modelName, installedModelNames),
                 hfTokenRequired: bestMatch.hfTokenRequired,
                 url: bestMatch.url || bestMatch.modelUrl || bestMatch.fileUrl || bestMatch.downloadUrl || bestMatch.href || ''
@@ -372,7 +380,13 @@ export function matchModels(detectedFiles, availableModels, installedModelNames 
         } else {
             // Check if the detected file itself is installed (even without a match in our database)
             const detectedIsInstalled = isModelInstalled(filename, null, installedModelNames);
-            missing.push({ name: filename, bestScore: bestScore, bestMatchName: bestMatch?.modelName, isInstalled: detectedIsInstalled });
+            missing.push({ 
+                name: filename, 
+                originalPath: originalPath,  // Keep original path for workflow fixing
+                bestScore: bestScore, 
+                bestMatchName: bestMatch?.modelName, 
+                isInstalled: detectedIsInstalled 
+            });
         }
     });
 

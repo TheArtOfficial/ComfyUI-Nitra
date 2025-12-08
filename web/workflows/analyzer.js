@@ -7,7 +7,8 @@ export function getCurrentWorkflowDependencies() {
     const usedNodeTypes = new Set();
     const usedCnrIds = new Set();
     const usedAuxIds = new Set();
-    const usedModels = new Set();
+    // Map from stripped filename -> original path (with folder prefix if any)
+    const usedModelsMap = new Map();
 
     // Helper to extract just the filename from a path (handles both / and \)
     const getFilename = (path) => {
@@ -24,9 +25,12 @@ export function getCurrentWorkflowDependencies() {
         if (typeof val === 'string') {
             const valLower = val.toLowerCase();
             if (MODEL_EXTENSIONS.some(ext => valLower.endsWith(ext))) {
-                // Strip folder path, only keep the filename
+                // Get both the stripped filename and keep the original path
                 const filename = getFilename(val);
-                usedModels.add(filename);
+                // Store original path - if we've seen this filename before, keep the one with more path info
+                if (!usedModelsMap.has(filename) || val.length > usedModelsMap.get(filename).length) {
+                    usedModelsMap.set(filename, val);
+                }
             }
         } else if (Array.isArray(val)) {
             // Recursively check array items
@@ -178,11 +182,17 @@ export function getCurrentWorkflowDependencies() {
         }
     }
 
+    // Convert models map to array of objects with both filename and originalPath
+    const modelsArray = Array.from(usedModelsMap.entries()).map(([filename, originalPath]) => ({
+        filename,      // stripped filename for matching
+        originalPath   // original value from workflow (may include folder prefix)
+    }));
+
     return {
         customNodes: Array.from(usedNodeTypes),
         cnrIds: Array.from(usedCnrIds),
         auxIds: Array.from(usedAuxIds),
-        models: Array.from(usedModels)
+        models: modelsArray
     };
 }
 

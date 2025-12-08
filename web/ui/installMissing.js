@@ -7,6 +7,7 @@ import { fetchCustomNodesLibrary, fetchNodeMappings, fetchInstalledCustomNodes }
 import { getExistingModels } from '../workflows/api.js';
 import { showHuggingFaceTokenPrompt, showRestartPrompt } from './systemPrompts.js';
 import { getWebsiteBaseUrl } from '../core/config.js';
+import { app } from "/scripts/app.js";
 
 // Track selections
 const selectedInstallItems = {
@@ -18,6 +19,410 @@ let matchedModelsCache = [];
 let installationInProgress = false;
 let abortController = null;
 let statusPollInterval = null;
+let installedMismatchedModels = []; // Track models installed with different names
+
+/**
+ * Find and replace model names in the LIVE ComfyUI graph
+ * This modifies the actual graph displayed in the UI
+ * @param {string} oldPath - The exact old path to find (e.g., "WAN\model.safetensors")
+ * @param {string} newName - The new model name to replace with
+ * @returns {number} - Number of replacements made
+ */
+function replaceModelInLiveGraph(oldPath, newName) {
+    let replacements = 0;
+    const modelExtensions = ['.safetensors', '.ckpt', '.pt', '.bin', '.pth', '.gguf'];
+    
+    if (!app?.graph?._nodes) {
+        console.warn('No live graph available');
+        return 0;
+    }
+    
+    // Extract just the filename from oldPath for flexible matching
+    const oldFilename = oldPath.split(/[/\\]/).pop();
+    
+    console.log(`Looking for exact: "${oldPath}" OR filename: "${oldFilename}"`);
+    
+    // Helper to check if a value matches what we're looking for
+    const isMatch = (val) => {
+        if (typeof val !== 'string') return false;
+        const valFilename = val.split(/[/\\]/).pop();
+        return val === oldPath || valFilename === oldFilename || val === oldFilename;
+    };
+    
+    // Helper to recursively search and replace in objects/arrays
+    const searchAndReplaceInObject = (obj, path = '') => {
+        if (obj === null || obj === undefined) return 0;
+        let count = 0;
+        
+        if (Array.isArray(obj)) {
+            for (let i = 0; i < obj.length; i++) {
+                if (isMatch(obj[i])) {
+                    console.log(`  Found in ${path}[${i}]: "${obj[i]}" -> "${newName}"`);
+                    obj[i] = newName;
+                    count++;
+                } else if (typeof obj[i] === 'object') {
+                    count += searchAndReplaceInObject(obj[i], `${path}[${i}]`);
+                }
+            }
+        } else if (typeof obj === 'object') {
+            for (const key in obj) {
+                if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                    if (isMatch(obj[key])) {
+                        console.log(`  Found in ${path}.${key}: "${obj[key]}" -> "${newName}"`);
+                        obj[key] = newName;
+                        count++;
+                    } else if (typeof obj[key] === 'object') {
+                        count += searchAndReplaceInObject(obj[key], `${path}.${key}`);
+                    }
+                }
+            }
+        }
+        return count;
+    };
+    
+    // Iterate through all nodes in the live graph
+    for (const node of app.graph._nodes) {
+        const nodeLabel = node.title || node.type;
+        
+        // Check widgets
+        if (node.widgets) {
+            for (const widget of node.widgets) {
+                const val = widget.value;
+                
+                // Check if this looks like a model file (for logging)
+                if (typeof val === 'string') {
+                    const valLower = val.toLowerCase();
+                    const isModelWidget = modelExtensions.some(ext => valLower.endsWith(ext));
+                    if (isModelWidget) {
+                        console.log(`  Node "${nodeLabel}" widget "${widget.name}" = "${val}"`);
+                    }
+                }
+                
+                // Check string values
+                if (isMatch(val)) {
+                    console.log(`  MATCH in widget! Node "${nodeLabel}" widget "${widget.name}": "${val}" -> "${newName}"`);
+                    widget.value = newName;
+                    replacements++;
+                    
+                    if (widget.callback) {
+                        try {
+                            widget.callback(newName, app.canvas, node, [0, 0], null);
+                        } catch (e) {}
+                    }
+                }
+                // Check object/array widget values (like LoRA configs)
+                else if (typeof val === 'object' && val !== null) {
+                    const count = searchAndReplaceInObject(val, `${nodeLabel}.widget.${widget.name}`);
+                    replacements += count;
+                }
+            }
+        }
+        
+        // Check widgets_values array
+        if (node.widgets_values) {
+            const count = searchAndReplaceInObject(node.widgets_values, `${nodeLabel}.widgets_values`);
+            replacements += count;
+        }
+        
+        // Check properties (some nodes store configs here)
+        if (node.properties) {
+            const count = searchAndReplaceInObject(node.properties, `${nodeLabel}.properties`);
+            replacements += count;
+        }
+    }
+    
+    // Mark graph as changed so it gets saved
+    if (replacements > 0 && app.graph) {
+        app.graph.change();
+    }
+    
+    return replacements;
+}
+
+/**
+ * Find and replace model path in a workflow JSON object (for localStorage backup)
+ * @param {object} workflow - The workflow JSON object
+ * @param {string} oldPath - The exact old path to find (e.g., "WAN\model.safetensors")
+ * @param {string} newName - The new model name to replace with (just filename, no folder)
+ * @returns {number} - Number of replacements made
+ */
+function replaceModelNameInWorkflow(workflow, oldPath, newName) {
+    let replacements = 0;
+    
+    function searchAndReplace(obj) {
+        if (obj === null || obj === undefined) return;
+        
+        if (typeof obj === 'string') {
+            return; // Strings are immutable, handled at parent level
+        }
+        
+        if (Array.isArray(obj)) {
+            for (let i = 0; i < obj.length; i++) {
+                if (typeof obj[i] === 'string' && obj[i] === oldPath) {
+                    // Replace with just the new filename (no folder path needed for installed models)
+                    obj[i] = newName;
+                    replacements++;
+                } else if (typeof obj[i] === 'object') {
+                    searchAndReplace(obj[i]);
+                }
+            }
+            return;
+        }
+        
+        if (typeof obj === 'object') {
+            for (const key in obj) {
+                if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                    if (typeof obj[key] === 'string' && obj[key] === oldPath) {
+                        // Replace with just the new filename (no folder path needed for installed models)
+                        obj[key] = newName;
+                        replacements++;
+                    } else if (typeof obj[key] === 'object') {
+                        searchAndReplace(obj[key]);
+                    }
+                }
+            }
+        }
+    }
+    
+    searchAndReplace(workflow);
+    return replacements;
+}
+
+/**
+ * Fix mismatched model names in the current workflow
+ * @param {Array} mismatchedModels - Array of {detectedName, installedName} objects
+ * @returns {object} - {success, fixedCount, errors}
+ */
+/**
+ * Find all model-like string values in the workflow for debugging
+ */
+function findAllModelValuesInWorkflow(workflow) {
+    const modelExtensions = ['.safetensors', '.ckpt', '.pt', '.bin', '.pth', '.gguf'];
+    const foundValues = [];
+    
+    function scan(obj, path = '') {
+        if (obj === null || obj === undefined) return;
+        
+        if (typeof obj === 'string') {
+            const valLower = obj.toLowerCase();
+            if (modelExtensions.some(ext => valLower.endsWith(ext))) {
+                foundValues.push({ path, value: obj });
+            }
+            return;
+        }
+        
+        if (Array.isArray(obj)) {
+            obj.forEach((item, i) => scan(item, `${path}[${i}]`));
+            return;
+        }
+        
+        if (typeof obj === 'object') {
+            for (const key in obj) {
+                if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                    scan(obj[key], path ? `${path}.${key}` : key);
+                }
+            }
+        }
+    }
+    
+    scan(workflow);
+    return foundValues;
+}
+
+function fixWorkflowModelNames(mismatchedModels) {
+    try {
+        console.log('=== FIX MODEL NAMES START ===');
+        console.log('Mismatched models to fix:', mismatchedModels);
+        
+        let totalFixed = 0;
+        const errors = [];
+        
+        // STEP 1: Fix the LIVE graph (immediate visual update)
+        console.log('\n--- Fixing live graph ---');
+        for (const model of mismatchedModels) {
+            const searchPath = model.originalPath || model.detectedName;
+            
+            console.log(`\nSearching for: "${searchPath}"`);
+            console.log(`  (detected filename: "${model.detectedName}")`);
+            console.log(`Will replace with: "${model.installedName}"`);
+            
+            try {
+                const liveCount = replaceModelInLiveGraph(searchPath, model.installedName);
+                totalFixed += liveCount;
+                console.log(`Fixed ${liveCount} in live graph`);
+            } catch (e) {
+                errors.push(`Failed to replace ${model.detectedName} in live graph: ${e.message}`);
+                console.error(`Error replacing in live graph:`, e);
+            }
+        }
+        
+        // STEP 2: Also update localStorage for persistence
+        console.log('\n--- Updating localStorage ---');
+        const workflowStr = localStorage.getItem('workflow');
+        if (workflowStr) {
+            try {
+                const workflow = JSON.parse(workflowStr);
+                let localStorageFixed = 0;
+                
+                for (const model of mismatchedModels) {
+                    const searchPath = model.originalPath || model.detectedName;
+                    const count = replaceModelNameInWorkflow(workflow, searchPath, model.installedName);
+                    localStorageFixed += count;
+                }
+                
+                if (localStorageFixed > 0) {
+                    localStorage.setItem('workflow', JSON.stringify(workflow));
+                    console.log(`Updated ${localStorageFixed} in localStorage`);
+                }
+            } catch (e) {
+                console.warn('Could not update localStorage:', e);
+            }
+        }
+        
+        console.log(`\nTotal fixes: ${totalFixed}`);
+        
+        if (totalFixed === 0) {
+            console.log('No fixes made - model names not found in workflow');
+        }
+        
+        console.log('=== FIX MODEL NAMES END ===');
+        return { success: true, fixedCount: totalFixed, errors };
+    } catch (e) {
+        console.error('Error in fixWorkflowModelNames:', e);
+        return { success: false, fixedCount: 0, errors: [e.message] };
+    }
+}
+
+/**
+ * Show a dialog to fix mismatched model names
+ */
+function showFixModelNamesDialog(mismatchedModels, onComplete) {
+    // Create overlay
+    const overlay = div({
+        style: {
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000
+        }
+    });
+    
+    const dialog = div({
+        style: {
+            backgroundColor: '#1a1a1a',
+            border: '1px solid #333',
+            borderRadius: '12px',
+            padding: '24px',
+            maxWidth: '500px',
+            width: '90%',
+            color: '#fff'
+        }
+    });
+    
+    const title = div({
+        style: {
+            fontSize: '1.3em',
+            fontWeight: 'bold',
+            marginBottom: '16px'
+        }
+    }, 'Fix Model Names in Workflow?');
+    
+    const description = div({
+        style: {
+            marginBottom: '16px',
+            lineHeight: '1.5',
+            color: '#ccc'
+        }
+    }, `Found ${mismatchedModels.length} model(s) with different names than what was installed. Would you like to update the workflow to use the correct model names?`);
+    
+    const modelList = div({
+        style: {
+            backgroundColor: '#0a0a0a',
+            border: '1px solid #333',
+            borderRadius: '8px',
+            padding: '12px',
+            marginBottom: '16px',
+            maxHeight: '200px',
+            overflowY: 'auto',
+            fontSize: '0.85em'
+        }
+    });
+    
+    mismatchedModels.forEach(m => {
+        const item = div({
+            style: {
+                marginBottom: '8px',
+                paddingBottom: '8px',
+                borderBottom: '1px solid #222'
+            }
+        });
+        // Show the original path (what's in the workflow) and what it will be changed to
+        const displayPath = m.originalPath || m.detectedName;
+        item.innerHTML = `
+            <div style="color: #ef4444; word-break: break-all;">From: ${displayPath}</div>
+            <div style="color: #22c55e;">To: ${m.installedName}</div>
+        `;
+        modelList.appendChild(item);
+    });
+    
+    const buttonContainer = div({
+        style: {
+            display: 'flex',
+            gap: '12px',
+            justifyContent: 'flex-end'
+        }
+    });
+    
+    const skipBtn = button({
+        className: 'nitra-btn',
+        style: {
+            padding: '10px 20px'
+        },
+        onclick: () => {
+            document.body.removeChild(overlay);
+            if (onComplete) onComplete(false);
+        }
+    }, 'Skip');
+    
+    const fixBtn = button({
+        className: 'nitra-btn nitra-btn-primary',
+        style: {
+            padding: '10px 20px',
+            backgroundColor: '#22c55e',
+            border: '1px solid #22c55e'
+        },
+        onclick: () => {
+            const result = fixWorkflowModelNames(mismatchedModels);
+            document.body.removeChild(overlay);
+            
+            // Log result to console, no alert - just close dialog so user can see the workflow
+            if (result.fixedCount > 0) {
+                console.log(`Fixed ${result.fixedCount} model reference(s) in the workflow`);
+            } else {
+                console.log('No model references were fixed');
+            }
+            
+            if (onComplete) onComplete(true);
+        }
+    }, 'Fix Model Names');
+    
+    buttonContainer.appendChild(skipBtn);
+    buttonContainer.appendChild(fixBtn);
+    
+    dialog.appendChild(title);
+    dialog.appendChild(description);
+    dialog.appendChild(modelList);
+    dialog.appendChild(buttonContainer);
+    overlay.appendChild(dialog);
+    
+    document.body.appendChild(overlay);
+}
 
 export async function renderInstallMissing(container) {
     try {
@@ -189,11 +594,8 @@ async function startDependencyAnalysis(container) {
             <strong style="font-size: 1em;">Install Missing Dependencies</strong> - 
             Select the custom nodes and models you want to install. Items already installed are shown as disabled.<br><br>
 
-            After installation, you may still need to select the correct models on some nodes because the model names may not be exact matches.<br>
-            Specifically take note of any models that were not a 100% match, these are the ones you will need to change.<br>
-            Example: If the model name is wan2_1.safetensors, but the matched name is wan2.1.safetensors, you will need to change it in the "Load Diffusion Model" node.<br><br>
-
-            If a model does not have a match, it is likely that the file auto-downloads during the workflow, be sure to check those nodes before asking for it to be added.<br><br>
+            If a model shows less than 100% match, use the <strong style="color: #22c55e;">Fix Model Names</strong> button to automatically update the workflow with the correct model filenames.<br>
+            If a model does not have a match, it likely auto-downloads during the workflow run.
             
             <div style="color: #ef4444 !important; margin-top: 8px; font-size: 0.85em; font-weight: bold;">
                 Installing Custom Nodes that do not come with the official Nitra Workflows can lead to mismatched software requirements, and break your ComfyUI install. Install with caution.
@@ -510,6 +912,41 @@ async function startDependencyAnalysis(container) {
         style: { display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px' }
     });
 
+    // Check for mismatched model names (detected != matched)
+    // Use originalPath (the actual string in the workflow) for searching
+    const getMismatchedModels = () => matchedModelsCache
+        .filter(m => m.detectedName && m.modelName && m.detectedName !== m.modelName)
+        .map(m => ({
+            detectedName: m.detectedName,           // stripped filename (for UI display)
+            originalPath: m.originalPath || m.detectedName,  // actual string in workflow (for search/replace)
+            installedName: m.modelName              // what we want to replace it with
+        }));
+
+    const fixModelNamesBtn = button({
+        className: 'nitra-btn',
+        style: { 
+            padding: '12px 24px', 
+            fontSize: '1.1em',
+            display: 'none',
+            background: 'rgba(34, 197, 94, 0.2)',
+            border: '1px solid rgba(34, 197, 94, 0.5)',
+            color: '#22c55e'
+        },
+        onclick: () => {
+            const mismatched = getMismatchedModels();
+            if (mismatched.length > 0) {
+                showFixModelNamesDialog(mismatched, () => {});
+            }
+        }
+    }, "Fix Model Names");
+
+    // Show fix button if there are mismatched models
+    const updateFixButtonVisibility = () => {
+        const mismatched = getMismatchedModels();
+        fixModelNamesBtn.style.display = mismatched.length > 0 ? 'inline-block' : 'none';
+    };
+    updateFixButtonVisibility();
+
     const cancelBtn = button({
         className: 'nitra-btn',
         style: { 
@@ -529,6 +966,7 @@ async function startDependencyAnalysis(container) {
         onclick: () => handleInstall()
     }, "Install Selected");
 
+    actionRow.appendChild(fixModelNamesBtn);
     actionRow.appendChild(cancelBtn);
     actionRow.appendChild(installBtn);
     footer.appendChild(actionRow);
@@ -617,9 +1055,23 @@ async function startDependencyAnalysis(container) {
                     
                     // Show restart prompt only on successful completion
                     if (status === 'completed') {
-                        showRestartPrompt({
-                            onRestartSuccess: () => state.setPendingRefreshAfterRestart(true),
-                        });
+                        // Check if there are mismatched model names to fix
+                        if (installedMismatchedModels.length > 0) {
+                            showFixModelNamesDialog(installedMismatchedModels, (fixed) => {
+                                // Clear the list after handling
+                                installedMismatchedModels = [];
+                                // If they didn't fix (and page didn't reload), show restart prompt
+                                if (!fixed) {
+                                    showRestartPrompt({
+                                        onRestartSuccess: () => state.setPendingRefreshAfterRestart(true),
+                                    });
+                                }
+                            });
+                        } else {
+                            showRestartPrompt({
+                                onRestartSuccess: () => state.setPendingRefreshAfterRestart(true),
+                            });
+                        }
                     }
                 }
             } catch (err) {
@@ -647,6 +1099,18 @@ async function startDependencyAnalysis(container) {
             installBtn.textContent = "Installing...";
             installBtn.disabled = true;
             installBtn.style.opacity = '0.5';
+            // Track ALL models with mismatched names (detected name != matched/installed name)
+            // This includes both models being installed AND already installed models
+            installedMismatchedModels = matchedModelsCache
+                .filter(m => m.detectedName && m.modelName && m.detectedName !== m.modelName)
+                .map(m => ({
+                    detectedName: m.detectedName,           // stripped filename (for UI display)
+                    originalPath: m.originalPath || m.detectedName,  // actual string in workflow (for search/replace)
+                    installedName: m.modelName              // what we want to replace it with
+                }));
+            
+            console.log('Mismatched models to fix:', installedMismatchedModels);
+            
             const modelsToInstall = matchedModelsCache
                 .filter(m => selectedInstallItems.models.has(m.id) && !m.isInstalled)
                 .map(m => ({
