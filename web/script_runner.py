@@ -10,6 +10,7 @@ import json
 import requests
 import tempfile
 import subprocess
+import signal
 import shutil
 from typing import List, Dict, Optional, Any
 from urllib.parse import urlparse
@@ -36,6 +37,8 @@ class ScriptRunner:
         self.access_token = access_token
         self.temp_dir = None
         self.script_path = None
+        self.current_process = None  # Track current subprocess for cancellation
+        self._terminated = False  # Flag to indicate if process was terminated
         
         # Store configs_url directly if provided - no config object needed
         if configs_url:
@@ -229,15 +232,48 @@ class ScriptRunner:
                 universal_newlines=True
             )
             
-            # Capture output in real-time
+            # Store process for external cancellation
+            self.current_process = process
+            
+            # Capture output in real-time with special handling for progress bars
             output_lines = []
+            last_was_progress = False
+            
             while True:
                 output = process.stdout.readline()
                 if output == '' and process.poll() is not None:
                     break
-                if output and output.strip():  # Only log non-empty lines
-                    output_lines.append(output.strip())
-                    self.logger.info(output.strip())
+                if output:
+                    stripped = output.strip()
+                    if not stripped:
+                        continue
+                    
+                    output_lines.append(stripped)
+                    
+                    # Detect tqdm-style progress bars (contain %| or progress indicators)
+                    is_progress = '%|' in stripped or (
+                        any(c in stripped for c in ['|', '#']) and 
+                        '%' in stripped and 
+                        ('/' in stripped or 'B/s' in stripped or 'it/s' in stripped)
+                    )
+                    
+                    if is_progress:
+                        # Write progress directly to stderr with carriage return for in-place updates
+                        sys.stderr.write(f'\r{stripped}')
+                        sys.stderr.flush()
+                        last_was_progress = True
+                    else:
+                        # For non-progress output, ensure we're on a new line first
+                        if last_was_progress:
+                            sys.stderr.write('\n')
+                            sys.stderr.flush()
+                            last_was_progress = False
+                        self.logger.info(stripped)
+            
+            # Ensure final newline if we ended on a progress bar
+            if last_was_progress:
+                sys.stderr.write('\n')
+                sys.stderr.flush()
             
             # Get return code
             return_code = process.poll()
@@ -281,6 +317,26 @@ class ScriptRunner:
                 'execution_time': 0,
                 'return_code': -1
             }
+        finally:
+            # Clear current process reference when finished
+            self.current_process = None
+    
+    def terminate(self):
+        """Terminate the currently running subprocess (if any)."""
+        proc = self.current_process
+        if proc and proc.poll() is None:
+            try:
+                if os.name == 'nt':
+                    proc.send_signal(getattr(subprocess, "CTRL_BREAK_EVENT", signal.SIGTERM))
+                else:
+                    proc.terminate()
+                proc.wait(timeout=5)
+            except Exception:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+        self.current_process = None
     
     def cleanup(self):
         """Clean up temporary files and directories"""

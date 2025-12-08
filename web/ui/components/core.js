@@ -19,9 +19,9 @@ export function createElement(tag, props = {}, ...children) {
         }
     });
     
-    // Append children
+    // Append children (filter out null, undefined, and false)
     children.flat().forEach(child => {
-        if (child != null) {
+        if (child != null && child !== false) {
             element.append(
                 typeof child === 'string' ? document.createTextNode(child) : child
             );

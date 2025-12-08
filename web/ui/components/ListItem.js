@@ -36,15 +36,15 @@ export function ListItem({
     
     // Title row with space-between
     const titleRow = div(
-        { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' } },
-        div({ className: 'nitra-list-item-title', style: { fontSize: '1.1em', fontWeight: 'bold' } }, title || 'Unnamed Item'),
-        rightContent && div({ className: 'nitra-list-item-right', style: { marginLeft: '10px', fontSize: '0.95em', opacity: 0.8 } }, rightContent)
+        { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', overflow: 'hidden' } },
+        div({ className: 'nitra-list-item-title', style: { fontSize: '0.9em', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 } }, title || 'Unnamed Item'),
+        rightContent && div({ className: 'nitra-list-item-right', style: { marginLeft: '10px', fontSize: '0.85em', opacity: 0.8, flexShrink: 0 } }, rightContent)
     );
     
     const content = div(
-        { style: { flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' } },
+        { style: { flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden', minWidth: 0 } },
         titleRow,
-        description && div({ className: 'nitra-list-item-description' }, description),
+        description && div({ className: 'nitra-list-item-description', style: { fontSize: '0.8em', opacity: 0.7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, description),
         meta && div({ className: 'nitra-list-item-meta' }, meta),
         tags.length > 0 && div(
             { style: { marginTop: '4px' } },
@@ -60,7 +60,7 @@ export function ListItem({
                 cursor: disabled ? 'default' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                padding: '12px 16px'
+                padding: '10px 12px'
             },
             onClick: () => {
                 if (disabled) return;

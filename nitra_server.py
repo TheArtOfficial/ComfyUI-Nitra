@@ -5,6 +5,7 @@ Follows the exact same pattern as ComfyUI-Manager for route registration
 
 import logging
 import os
+import time
 import sys
 import json
 import unicodedata
@@ -169,13 +170,32 @@ def get_python_cmd() -> List[str]:
     return [sys.executable]
 
 def debug_log(message):
-    """Debug logging that flushes to stdout and logger."""
+    """
+    Debug logging with basic redaction:
+    - Suppress console printing for sensitive/noisy details (tokens, paths, full payloads)
+    - Still log everything to debug, but only surface user-relevant messages to stdout
+    """
     try:
-        print(f"Nitra: {message}", flush=True)
+        msg_str = str(message)
+        lowered = msg_str.lower()
+        noisy_keys = [
+            "token", "request data", "options", "script path", "script directory",
+            "detected comfyui root", "working directory", "env", "payload", "args:",
+            "loaded node mappings", "parsed data", "skipping local script validation",
+            "starting workflow_downloader", "status/update"
+        ]
+        allow_keys = [
+            "install", "installation", "custom node", "models", "summary", "download",
+            "✓", "✗", "error", "failed"
+        ]
+        is_noisy = any(k in lowered for k in noisy_keys)
+        is_allowed = any(k in lowered for k in allow_keys)
+        logger.debug(f"Nitra: {msg_str}")
+        if is_allowed and not is_noisy:
+            print(f"Nitra: {msg_str}", flush=True)
     except Exception:
-        logger.info(message)
-    else:
-        logger.info(message)
+        # If logging fails, fail silently
+        pass
 
 
 def _mask_token_preview(token: Optional[str]) -> str:
@@ -1296,6 +1316,98 @@ async def get_models_metadata(request):
         return web.json_response({'error': 'Internal server error'}, status=500)
 
 
+@routes.post('/nitra/execute/cancel')
+async def cancel_execution(request):
+    """Cancel any running installation/script execution"""
+    try:
+        debug_log("=== CANCEL_EXECUTION FUNCTION CALLED ===")
+        
+        # Get user email from request if available
+        user_email = None
+        try:
+            data = await request.json()
+            user_email = data.get('user_email')
+        except Exception:
+            pass
+        
+        # Get all running processes related to script execution
+        cancelled_count = 0
+        with task_worker_lock:
+            # Find and terminate script-related processes
+            to_remove = []
+            for task_id, info in running_processes.items():
+                # Cancel script executions (workflow_downloader, etc.)
+                should_cancel = (
+                    'script' in task_id.lower() or 
+                    'workflow' in task_id.lower() or 
+                    'install' in task_id.lower() or
+                    'model' in task_id.lower()
+                )
+                if should_cancel:
+                    proc = info.get('process')
+                    if proc and proc.poll() is None:
+                        debug_log(f"Cancelling task: {task_id}")
+                        _terminate_child_process(proc, task_id)
+                        cancelled_count += 1
+                    # Also terminate via script runner if available
+                    script_runner = info.get('script_runner')
+                    if script_runner:
+                        try:
+                            script_runner.terminate()
+                        except Exception:
+                            pass
+                    to_remove.append(task_id)
+            
+            # Clean up terminated tasks
+            for task_id in to_remove:
+                info = running_processes.pop(task_id, {})
+                # Clean up script runner if present
+                script_runner = info.get('script_runner')
+                if script_runner:
+                    try:
+                        script_runner.cleanup()
+                    except Exception:
+                        pass
+            
+            # Also clear any pending tasks from the queue
+            cleared_queue = 0
+            try:
+                while not task_queue.empty():
+                    task_queue.get_nowait()
+                    cleared_queue += 1
+            except Exception:
+                pass
+            if cleared_queue > 0:
+                debug_log(f"Cleared {cleared_queue} pending tasks from queue")
+        
+        # Clear active update status for user (if provided) or all users
+        if user_email and user_email in nitra_active_updates:
+            nitra_active_updates[user_email] = {
+                'status': 'cancelled',
+                'message': 'Installation cancelled by user'
+            }
+        else:
+            # Mark all active updates as cancelled
+            for email in list(nitra_active_updates.keys()):
+                if nitra_active_updates[email].get('status') in ['started', 'running', 'in_progress']:
+                    nitra_active_updates[email] = {
+                        'status': 'cancelled',
+                        'message': 'Installation cancelled by user'
+                    }
+        
+        debug_log(f"Cancelled {cancelled_count} running processes, cleared {cleared_queue} queued tasks")
+        return web.json_response({
+            'success': True,
+            'message': f'Cancelled {cancelled_count} running process(es)',
+            'cancelled_count': cancelled_count,
+            'cleared_queue': cleared_queue
+        })
+        
+    except Exception as e:
+        logger.error(f"Nitra: Cancel execution error: {e}")
+        return web.json_response({'error': str(e)}, status=500)
+
+
 @routes.post('/nitra/execute/script')
 async def execute_script(request):
     """Execute installation scripts with authentication check"""
@@ -1538,12 +1650,13 @@ async def execute_script(request):
             model_ids_json = json.dumps(options.get('model_ids'))
             cmd.append(model_ids_json)
             debug_log(f"Adding model IDs argument: {model_ids_json}")
-        elif script_filename == 'workflow_downloader.py' and options.get('workflow_ids'):
-            # Pass workflow IDs as JSON argument
-            workflow_ids_json = json.dumps(options.get('workflow_ids'))
-            cmd.append(workflow_ids_json)
+        elif script_filename == 'workflow_downloader.py':
+            # For workflow_downloader, pass full options payload (even if workflow_ids is empty)
+            workflow_payload_json = json.dumps(options)
+            cmd.append(workflow_payload_json)
+            debug_log(f"Adding workflow payload argument: {workflow_payload_json}")
         
-        # Add HuggingFace token if provided
+        # Add HuggingFace token if provided (second argument for scripts that accept it)
         if options.get('huggingface_token'):
             cmd.append(options.get('huggingface_token'))
             debug_log("Adding HuggingFace token argument")
@@ -1583,6 +1696,8 @@ async def execute_script(request):
                         f"Passing access token to script runner: {_mask_token_preview(script_runner_token)}"
                     )
                     configs_url = f'{WEBSITE_BASE_URL}/api'
+                    # Ensure environment (paths/tokens) are visible to the child process
+                    os.environ.update(env)
                     runner = ScriptRunner(access_token=script_runner_token, configs_url=configs_url)
                     
                 except Exception as import_error:
@@ -1608,19 +1723,52 @@ async def execute_script(request):
                 args = cmd[2:] if len(cmd) > 2 else []
                 
                 debug_log(f"Running script: {script_name} with args: {args}")
-                result_data = runner.run_script_with_cleanup(script_name, args, local_test=False)
                 
-                # Create a mock result object to match subprocess.run interface
-                class MockResult:
-                    def __init__(self, success, returncode=0):
-                        self.returncode = 0 if success else 1
-                        self.success = success
+                # Run the script in a background thread to allow cancellation
+                def _run_script_task(tid: str, runner_obj: ScriptRunner, s_name: str, s_args: list, u_email: str):
+                    try:
+                        result_data = runner_obj.run_script_with_cleanup(s_name, s_args, local_test=False)
+                        debug_log(f"Script runner completed with success: {result_data.get('success')}")
+                        # Update status to completed
+                        if result_data.get('success'):
+                            nitra_active_updates[u_email] = {
+                                'status': 'completed',
+                                'message': 'Update completed successfully'
+                            }
+                        else:
+                            nitra_active_updates[u_email] = {
+                                'status': 'failed',
+                                'message': result_data.get('error', 'Script execution failed')
+                            }
+                    except Exception as task_exc:
+                        debug_log(f"Script runner error: {task_exc}")
+                        nitra_active_updates[u_email] = {
+                            'status': 'failed',
+                            'message': str(task_exc)
+                        }
+                    finally:
+                        with task_worker_lock:
+                            running_processes.pop(tid, None)
                 
-                result = MockResult(result_data['success'])
-                debug_log(f"Script runner completed with success: {result_data['success']}")
+                task_id = f"script_{script_name}_{int(time.time())}"
+                with task_worker_lock:
+                    running_processes[task_id] = {
+                        'process': None,  # process will be available via runner.current_process
+                        'script_runner': runner
+                    }
                 
-                if not result_data['success']:
-                    debug_log(f"Script runner error: {result_data.get('error', 'Unknown error')}")
+                t = threading.Thread(target=_run_script_task, args=(task_id, runner, script_name, args, user_email), daemon=True)
+                t.start()
+                
+                # Return early since work continues in background
+                return web.json_response({
+                    "status": "started",
+                    "success": True,
+                    "message": f"{script_filename} execution started",
+                    "task_id": task_id,
+                    "user": user_email,
+                    "options": options
+                }, status=200)
                 
             else:
                 # Use original subprocess execution (local files)
@@ -1760,7 +1908,8 @@ async def get_update_status(request):
         # Check if there's an active update for this user
         if user_email in nitra_active_updates:
             update_info = nitra_active_updates[user_email]
-            logger.info(f"Nitra: Update status for {user_email}: {update_info}")
+            # Use debug level to avoid spamming terminal during polling
+            logger.debug(f"Nitra: Update status for {user_email}: {update_info}")
             return web.json_response(update_info)
         else:
             # No active update found
@@ -2433,6 +2582,43 @@ def check_existing_models(request):
     except Exception as e:
         print(f"Error checking existing models: {e}")
         return web.json_response({'error': 'Failed to check existing models'}, status=500)
+
+
+@routes.get('/nitra/custom-nodes/check-installed')
+def check_installed_custom_nodes(request):
+    """Check what custom nodes are already installed in ComfyUI"""
+    try:
+        # Basic auth check
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return web.json_response(
+                {"error": "Missing or invalid authorization header"}, 
+                status=401
+            )
+        
+        # Determine ComfyUI custom_nodes directory
+        comfyui_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        custom_nodes_dir = os.path.join(comfyui_root, 'custom_nodes')
+        
+        installed_nodes = []
+        
+        if os.path.exists(custom_nodes_dir):
+            # Get all directories in custom_nodes folder
+            for item in os.listdir(custom_nodes_dir):
+                item_path = os.path.join(custom_nodes_dir, item)
+                if os.path.isdir(item_path) and not item.startswith('.'):
+                    # This is an installed custom node package
+                    installed_nodes.append(item.lower())  # Lowercase for easier matching
+        
+        return web.json_response({
+            'installedNodes': installed_nodes,
+            'count': len(installed_nodes)
+        })
+        
+    except Exception as e:
+        print(f"Error checking installed custom nodes: {e}")
+        return web.json_response({'error': 'Failed to check installed custom nodes'}, status=500)
+
 
 @routes.get('/nitra/check-nitra-updates')
 async def check_nitra_updates(request):
@@ -3944,34 +4130,7 @@ async def get_custom_nodes(request):
 
 @routes.get('/nitra/node-mappings')
 async def get_node_mappings(request):
-    """Fetch external node mappings (e.g. from ComfyUI-Manager's list) to map node types to packs"""
-    try:
-        # 1. Try local ComfyUI-Manager file first (best source of truth)
-        import os
-        import json
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        custom_nodes_dir = os.path.dirname(current_dir)
-        manager_path = os.path.join(custom_nodes_dir, 'ComfyUI-Manager', 'extension-node-map.json')
-        
-        if os.path.exists(manager_path):
-            try:
-                with open(manager_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    logger.info(f"Nitra: Loaded node mappings from local ComfyUI-Manager: {len(data)} entries")
-                    return web.json_response(data)
-            except Exception as e:
-                logger.warning(f"Nitra: Failed to read local ComfyUI-Manager map: {e}")
-
-        # 2. Fallback to GitHub
-        import requests
-        mapping_url = "https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/extension-node-map.json"
-        
-        response = requests.get(mapping_url, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        return web.json_response(data)
-    except Exception as e:
-        logger.error(f"Nitra: Failed to fetch node mappings: {e}")
-        return web.json_response({}, status=200)
+    """Legacy endpoint no longer needed; return empty mappings."""
+    return web.json_response({})
 
 debug_log("Routes registered successfully")

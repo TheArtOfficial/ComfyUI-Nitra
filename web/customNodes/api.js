@@ -40,3 +40,24 @@ export async function fetchNodeMappings() {
     }
     return {};
 }
+
+// No caching - always fetch fresh data for Install Missing
+export async function fetchInstalledCustomNodes() {
+    try {
+        const response = await fetch('/nitra/custom-nodes/check-installed', {
+            headers: {
+                'Authorization': `Bearer ${state.currentUser?.apiToken || ''}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            return new Set(data.installedNodes || []);
+        }
+    } catch (error) {
+        console.error("Nitra: Failed to fetch installed custom nodes", error);
+    }
+    return new Set();
+}
+

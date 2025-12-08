@@ -1,7 +1,7 @@
 import { app } from "/scripts/app.js";
 
 // Model extensions to detect in widget values
-const MODEL_EXTENSIONS = ['.safetensors', '.ckpt', '.pt', '.bin', '.pth'];
+const MODEL_EXTENSIONS = ['.safetensors', '.ckpt', '.pt', '.bin', '.pth', '.gguf'];
 
 export function getCurrentWorkflowDependencies() {
     const usedNodeTypes = new Set();
@@ -9,13 +9,31 @@ export function getCurrentWorkflowDependencies() {
     const usedAuxIds = new Set();
     const usedModels = new Set();
 
-    // Helper to check if a value looks like a model filename
-    const checkValue = (val) => {
+    // Helper to extract just the filename from a path (handles both / and \)
+    const getFilename = (path) => {
+        // Handle both forward and backslashes, get last segment
+        const parts = path.split(/[/\\]/);
+        return parts[parts.length - 1];
+    };
+
+    // Helper to recursively check if a value looks like a model filename
+    const checkValue = (val, depth = 0) => {
+        // Prevent infinite recursion
+        if (depth > 10) return;
+        
         if (typeof val === 'string') {
             const valLower = val.toLowerCase();
             if (MODEL_EXTENSIONS.some(ext => valLower.endsWith(ext))) {
-                usedModels.add(val);
+                // Strip folder path, only keep the filename
+                const filename = getFilename(val);
+                usedModels.add(filename);
             }
+        } else if (Array.isArray(val)) {
+            // Recursively check array items
+            val.forEach(item => checkValue(item, depth + 1));
+        } else if (val && typeof val === 'object') {
+            // Recursively check object values (for nested structures like lora configs)
+            Object.values(val).forEach(v => checkValue(v, depth + 1));
         }
     };
 
@@ -167,3 +185,4 @@ export function getCurrentWorkflowDependencies() {
         models: Array.from(usedModels)
     };
 }
+

@@ -21,27 +21,30 @@ from huggingface_hub.utils import HfHubHTTPError
 from tqdm import tqdm
 import sys
 
-# Force tqdm to always show progress bars even in non-TTY environments
-# Monkey patch sys.stderr.isatty and sys.stdout.isatty to always return True
+import functools
+
+# Mimic workflow downloader behavior: treat as TTY so tqdm uses carriage returns.
 _original_stderr_isatty = sys.stderr.isatty
 _original_stdout_isatty = sys.stdout.isatty
 sys.stderr.isatty = lambda: True
 sys.stdout.isatty = lambda: True
 
-# Configure tqdm globally for subprocess output with ASCII characters
+# Configure tqdm to be compact and overwrite in-place
 tqdm.monitor_interval = 0
-
-# Set default ASCII mode for all tqdm instances
-import functools
 _original_tqdm_init = tqdm.__init__
 
 @functools.wraps(_original_tqdm_init)
-def _tqdm_init_ascii(self, *args, **kwargs):
-    kwargs['ascii'] = True  # Force ASCII characters
-    kwargs['ncols'] = 100   # Fixed width
+def _tqdm_init_compact(self, *args, **kwargs):
+    kwargs.setdefault('ascii', True)
+    kwargs.setdefault('ncols', 80)
+    kwargs.setdefault('mininterval', 0.5)
+    kwargs.setdefault('maxinterval', 2.0)
+    kwargs.setdefault('leave', False)
+    kwargs.setdefault('dynamic_ncols', True)
+    kwargs.setdefault('file', sys.stderr)
     return _original_tqdm_init(self, *args, **kwargs)
 
-tqdm.__init__ = _tqdm_init_ascii
+tqdm.__init__ = _tqdm_init_compact
 
 if hasattr(sys.stderr, 'reconfigure'):
     try:

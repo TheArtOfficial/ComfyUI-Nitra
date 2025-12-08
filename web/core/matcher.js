@@ -50,7 +50,54 @@ function calculateSimilarity(str1, str2) {
     return (2.0 * intersection) / (s1.length + s2.length - 2);
 }
 
-export function matchCustomNodes(detectedIds, detectedCnrIds = [], detectedAuxIds = [], availableNodes, installedNodeTypes = new Set(), nodeMappings = {}) {
+/**
+ * Check if a custom node package is installed by matching folder names
+ * installedFolders is a Set of lowercase folder names from custom_nodes directory
+ */
+function isPackageInstalled(packageName, repoUrl, installedFolders) {
+    if (!installedFolders || installedFolders.size === 0) return false;
+    
+    // Try matching package name directly
+    if (packageName) {
+        const nameLower = packageName.toLowerCase();
+        if (installedFolders.has(nameLower)) return true;
+        // Try with common prefixes/suffixes removed
+        const variants = [
+            nameLower,
+            nameLower.replace(/^comfyui[-_]?/i, ''),
+            nameLower.replace(/[-_]?comfyui$/i, ''),
+        ];
+        for (const v of variants) {
+            if (installedFolders.has(v)) return true;
+            // Check if any installed folder contains this name
+            for (const folder of installedFolders) {
+                if (folder.includes(v) || v.includes(folder)) {
+                    // Only match if they share significant overlap
+                    if (v.length > 5 && folder.length > 5) return true;
+                }
+            }
+        }
+    }
+    
+    // Try matching based on repo URL
+    if (repoUrl) {
+        const repoName = deriveAuxId(repoUrl);
+        if (repoName) {
+            const repoLower = repoName.toLowerCase();
+            if (installedFolders.has(repoLower)) return true;
+            // Check partial matches
+            for (const folder of installedFolders) {
+                if (folder === repoLower || folder.includes(repoLower) || repoLower.includes(folder)) {
+                    if (Math.min(folder.length, repoLower.length) > 5) return true;
+                }
+            }
+        }
+    }
+    
+    return false;
+}
+
+export function matchCustomNodes(detectedIds, detectedCnrIds = [], detectedAuxIds = [], availableNodes, installedNodeTypes = new Set(), nodeMappings = {}, installedFolders = new Set()) {
     const matches = [];
     const missing = [];
     const seenPacks = new Set(); // Deduplicate packs
@@ -71,11 +118,12 @@ export function matchCustomNodes(detectedIds, detectedCnrIds = [], detectedAuxId
 
             if (!seenPacks.has(packId)) {
                 seenPacks.add(packId);
+                const isInstalled = isPackageInstalled(match.name, nodeUrl, installedFolders);
                 matches.push({ 
                     ...match, 
                     gitRepo: nodeUrl, 
                     detectedName: cnrId,
-                    isInstalled: false, // Will be updated by node check
+                    isInstalled: isInstalled,
                     matchSource: 'cnr_id'
                 });
             }
@@ -105,11 +153,12 @@ export function matchCustomNodes(detectedIds, detectedCnrIds = [], detectedAuxId
 
             if (!seenPacks.has(packId)) {
                 seenPacks.add(packId);
+                const isInstalled = isPackageInstalled(match.name, nodeUrl, installedFolders);
                 matches.push({
                     ...match,
                     gitRepo: nodeUrl,
                     detectedName: auxId,
-                    isInstalled: false, // Will be updated by node check
+                    isInstalled: isInstalled,
                     matchSource: 'aux_id'
                 });
             }
@@ -174,8 +223,13 @@ export function matchCustomNodes(detectedIds, detectedCnrIds = [], detectedAuxId
             const nodeUrl = getRepoUrl(match);
             const packId = match.id || nodeUrl;
             
+            // Check if installed via node type registration OR folder existence
+            const nodeTypeInstalled = isInstalled;
+            const folderInstalled = isPackageInstalled(match.name, nodeUrl, installedFolders);
+            const packageIsInstalled = nodeTypeInstalled || folderInstalled;
+            
             if (seenPacks.has(packId)) {
-                if (isInstalled) {
+                if (packageIsInstalled) {
                     const existing = matches.find(m => (m.id || getRepoUrl(m)) === packId);
                     if (existing) existing.isInstalled = true;
                 }
@@ -185,7 +239,7 @@ export function matchCustomNodes(detectedIds, detectedCnrIds = [], detectedAuxId
                     ...match, 
                     gitRepo: nodeUrl, 
                     detectedName: id,
-                    isInstalled: isInstalled,
+                    isInstalled: packageIsInstalled,
                     matchSource: 'node_type'
                 });
             }
@@ -201,31 +255,104 @@ export function matchCustomNodes(detectedIds, detectedCnrIds = [], detectedAuxId
     return { matches, missing };
 }
 
-export function matchModels(detectedFiles, availableModels, installedModelIds = new Set(), threshold = 0.8) {
+/**
+ * Strips file extension from a filename
+ */
+function stripExtension(filename) {
+    return filename.replace(/\.(safetensors|ckpt|pt|bin|pth|gguf)$/i, '');
+}
+
+/**
+ * Check if a model is installed by comparing filenames (case-insensitive, without extension)
+ * installedModels is a Set of basenames (without extensions) from the filesystem
+ */
+function isModelInstalled(filename, modelName, installedModels) {
+    // Create lowercase Set for case-insensitive matching
+    const installedLower = new Set([...installedModels].map(m => m.toLowerCase()));
+    
+    // Check detected filename (without extension)
+    const detectedNoExt = stripExtension(filename).toLowerCase();
+    if (installedLower.has(detectedNoExt)) {
+        return true;
+    }
+    
+    // Check matched model name (without extension)
+    if (modelName) {
+        const matchedNoExt = stripExtension(modelName).toLowerCase();
+        if (installedLower.has(matchedNoExt)) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+export function matchModels(detectedFiles, availableModels, installedModelNames = new Set(), threshold = 0.5) {
     const matches = [];
     const missing = [];
 
     detectedFiles.forEach(filename => {
         let bestMatch = null;
         let bestScore = 0;
+        const filenameLower = filename.toLowerCase();
+        const filenameNoExt = stripExtension(filename).toLowerCase();
 
-        const exactMatch = availableModels.find(m => m.modelName === filename);
+        // 1. Try exact match (case-insensitive)
+        const exactMatch = availableModels.find(m => 
+            m.modelName && m.modelName.toLowerCase() === filenameLower
+        );
         if (exactMatch) {
             matches.push({ 
                 ...exactMatch, 
                 matchType: 'Exact', 
                 score: 1.0, 
                 detectedName: filename,
-                isInstalled: installedModelIds.has(exactMatch.id),
-                hfTokenRequired: exactMatch.hfTokenRequired
+                isInstalled: isModelInstalled(filename, exactMatch.modelName, installedModelNames),
+                hfTokenRequired: exactMatch.hfTokenRequired,
+                url: exactMatch.url || exactMatch.modelUrl || exactMatch.fileUrl || exactMatch.downloadUrl || exactMatch.href || ''
             });
             return;
         }
 
+        // 2. Try exact match without extension
+        const exactNoExtMatch = availableModels.find(m => 
+            m.modelName && stripExtension(m.modelName).toLowerCase() === filenameNoExt
+        );
+        if (exactNoExtMatch) {
+            matches.push({ 
+                ...exactNoExtMatch, 
+                matchType: 'Exact', 
+                score: 1.0, 
+                detectedName: filename,
+                isInstalled: isModelInstalled(filename, exactNoExtMatch.modelName, installedModelNames),
+                hfTokenRequired: exactNoExtMatch.hfTokenRequired,
+                url: exactNoExtMatch.url || exactNoExtMatch.modelUrl || exactNoExtMatch.fileUrl || exactNoExtMatch.downloadUrl || exactNoExtMatch.href || ''
+            });
+            return;
+        }
+
+        // 3. Fuzzy matching with multiple strategies
         availableModels.forEach(model => {
             if (!model.modelName) return;
             
-            const score = calculateSimilarity(filename, model.modelName);
+            const modelNameLower = model.modelName.toLowerCase();
+            const modelNameNoExt = stripExtension(model.modelName).toLowerCase();
+            
+            // Strategy A: Bigram similarity on full names
+            let score = calculateSimilarity(filename, model.modelName);
+            
+            // Strategy B: Bigram similarity without extensions
+            const scoreNoExt = calculateSimilarity(filenameNoExt, modelNameNoExt);
+            if (scoreNoExt > score) score = scoreNoExt;
+            
+            // Strategy C: Substring containment bonus
+            if (modelNameLower.includes(filenameNoExt) || filenameNoExt.includes(modelNameNoExt)) {
+                // If one contains the other, boost score significantly
+                const containmentScore = Math.min(filenameNoExt.length, modelNameNoExt.length) / 
+                                        Math.max(filenameNoExt.length, modelNameNoExt.length);
+                if (containmentScore > score) score = Math.max(score, containmentScore * 0.9);
+            }
+            
             if (score > bestScore) {
                 bestScore = score;
                 bestMatch = model;
@@ -238,11 +365,14 @@ export function matchModels(detectedFiles, availableModels, installedModelIds = 
                 matchType: 'Similar', 
                 score: bestScore,
                 detectedName: filename,
-                isInstalled: installedModelIds.has(bestMatch.id),
-                hfTokenRequired: bestMatch.hfTokenRequired
+                isInstalled: isModelInstalled(filename, bestMatch.modelName, installedModelNames),
+                hfTokenRequired: bestMatch.hfTokenRequired,
+                url: bestMatch.url || bestMatch.modelUrl || bestMatch.fileUrl || bestMatch.downloadUrl || bestMatch.href || ''
             });
         } else {
-            missing.push({ name: filename });
+            // Check if the detected file itself is installed (even without a match in our database)
+            const detectedIsInstalled = isModelInstalled(filename, null, installedModelNames);
+            missing.push({ name: filename, bestScore: bestScore, bestMatchName: bestMatch?.modelName, isInstalled: detectedIsInstalled });
         }
     });
 
