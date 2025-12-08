@@ -187,12 +187,13 @@ async function startDependencyAnalysis(container) {
         });
         infoHeader.innerHTML = `
             <strong style="font-size: 1em;">Install Missing Dependencies</strong> - 
-            Select the custom nodes and models you want to install. Items already installed are shown as disabled.
+            Select the custom nodes and models you want to install. Items already installed are shown as disabled.<br><br>
 
-            After installation, you may still need to select the correct models on some nodes because the model names may not be exact matches.
-            Specifically take note of any models that were not a 100% match, these are the ones you will need to change.
+            After installation, you may still need to select the correct models on some nodes because the model names may not be exact matches.<br>
+            Specifically take note of any models that were not a 100% match, these are the ones you will need to change.<br>
+            Example: If the model name is wan2_1.safetensors, but the matched name is wan2.1.safetensors, you will need to change it in the "Load Diffusion Model" node.<br><br>
 
-            If a model does not have a match, it is likely that the file auto-downloads during the workflow, be sure to check those nodes before raising a question.
+            If a model does not have a match, it is likely that the file auto-downloads during the workflow, be sure to check those nodes before asking for it to be added.<br><br>
             
             <div style="color: #ef4444 !important; margin-top: 8px; font-size: 0.85em; font-weight: bold;">
                 Installing Custom Nodes that do not come with the official Nitra Workflows can lead to mismatched software requirements, and break your ComfyUI install. Install with caution.

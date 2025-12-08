@@ -2566,7 +2566,7 @@ def check_existing_models(request):
             for root, dirs, files in os.walk(models_dir):
                 for file in files:
                     # Check if it's a model file
-                    if file.endswith(('.safetensors', '.ckpt', '.pt', '.pth', '.bin')):
+                    if file.endswith(('.safetensors', '.ckpt', '.pt', '.pth', '.bin', '.gguf')):
                         basename = os.path.splitext(file)[0]
                         if basename.lower() in skip_names:
                             continue
