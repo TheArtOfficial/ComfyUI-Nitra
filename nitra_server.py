@@ -1922,6 +1922,79 @@ async def get_models(request):
             status=500
         )
 
+@routes.get('/nitra/custom-nodes')
+async def get_custom_nodes(request):
+    """Get all active custom nodes from admin subdomain"""
+    try:
+        # Basic auth check
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return web.json_response(
+                {"error": "Missing or invalid authorization header"}, 
+                status=401
+            )
+        
+        access_token = auth_header[7:]  # Remove 'Bearer ' prefix
+        
+        if not access_token:
+            return web.json_response(
+                {"error": "Missing access token"}, 
+                status=401
+            )
+        
+        # Get user email from query parameter or decode from JWT token
+        user_email = request.query.get('userEmail', '')
+        
+        if not user_email:
+            # Try to decode JWT token to extract user email as fallback
+            try:
+                import base64
+                import json as json_lib
+                
+                token_parts = access_token.split('.')
+                if len(token_parts) != 3:
+                    return web.json_response(
+                        {"error": "Invalid token format"}, 
+                        status=401
+                    )
+                
+                payload_b64 = token_parts[1]
+                payload_b64 += '=' * (4 - len(payload_b64) % 4)
+                payload = json_lib.loads(base64.b64decode(payload_b64))
+                user_email = payload.get('email') or payload.get('user_email', '')
+                
+            except Exception as decode_error:
+                logger.error(f"Nitra: Failed to decode JWT token: {decode_error}")
+                return web.json_response(
+                    {"error": "Invalid token"}, 
+                    status=401
+                )
+        
+        # Call main website API to get custom nodes
+        import requests
+        
+        custom_nodes_url = f'{WEBSITE_BASE_URL}/api/custom-nodes'
+        
+        headers = _build_upstream_headers(access_token, user_email)
+        
+        response = requests.get(
+            custom_nodes_url, 
+            headers=headers, 
+            timeout=30
+        )
+        response.raise_for_status()
+        
+        custom_nodes_data = response.json()
+        
+        return web.json_response(custom_nodes_data)
+        
+    except Exception as e:
+        logger.error(f"Nitra: Custom nodes fetch error: {e}")
+        return web.json_response(
+            {"error": "Internal server error"}, 
+            status=500
+        )
+
 @routes.get('/nitra/workflows/{workflow_id}')
 async def get_workflow_details(request):
     """Get specific workflow details including subgraphs and models"""
@@ -2328,6 +2401,16 @@ def check_existing_models(request):
         models_dir = os.path.join(comfyui_root, 'models')
         
         existing_models = []
+        existing_files = []
+
+        # Names to ignore (common HF shard/config names that aren't helpful for matching)
+        skip_names = {
+            'diffusion_pytorch_model',
+            'pytorch_model',
+            'model',
+            'model-00001-of-00002',
+            'model-00002-of-00002'
+        }
         
         if os.path.exists(models_dir):
             # Walk through all subdirectories in models folder
@@ -2335,12 +2418,15 @@ def check_existing_models(request):
                 for file in files:
                     # Check if it's a model file
                     if file.endswith(('.safetensors', '.ckpt', '.pt', '.pth', '.bin')):
-                        # Extract model name (without extension)
-                        model_name = os.path.splitext(file)[0]
-                        existing_models.append(model_name)
+                        basename = os.path.splitext(file)[0]
+                        if basename.lower() in skip_names:
+                            continue
+                        existing_models.append(basename)
+                        existing_files.append(file)
         
         return web.json_response({
             'existingModels': existing_models,
+            'existingFiles': existing_files,
             'count': len(existing_models)
         })
         
@@ -3821,5 +3907,71 @@ async def telemetry_login(request):
     except Exception as e:
         logger.error(f"Nitra: telemetry login error: {e}")
         return web.json_response({'error': 'Failed to record telemetry'}, status=500)
+
+@routes.get('/nitra/custom-nodes')
+async def get_custom_nodes(request):
+    """Get all active custom nodes from admin subdomain"""
+    try:
+        # Basic auth check (similar to existing model/workflow routes)
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return web.json_response({"error": "Missing or invalid authorization header"}, status=401)
+        
+        access_token = auth_header[7:]
+        if not access_token:
+            return web.json_response({"error": "Missing access token"}, status=401)
+        
+        user_email = request.query.get('userEmail', '')
+        if not user_email: # Fallback to decode JWT token
+            import base64, json as json_lib
+            token_parts = access_token.split('.')
+            if len(token_parts) != 3: return web.json_response({"error": "Invalid token format"}, status=401)
+            payload_b64 = token_parts[1]
+            payload_b64 += '=' * (4 - len(payload_b64) % 4)
+            payload = json_lib.loads(base64.b64decode(payload_b64))
+            user_email = payload.get('email') or payload.get('user_email', '')
+        
+        import requests
+        custom_nodes_url = f'{WEBSITE_BASE_URL}/api/custom-nodes' # Target upstream API
+        headers = _build_upstream_headers(access_token, user_email)
+        response = requests.get(custom_nodes_url, headers=headers, timeout=30)
+        response.raise_for_status()
+        custom_nodes_data = response.json()
+        return web.json_response(custom_nodes_data)
+    except Exception as e:
+        logger.error(f"Nitra: Custom nodes fetch error: {e}")
+        return web.json_response({"error": "Internal server error"}, status=500)
+
+@routes.get('/nitra/node-mappings')
+async def get_node_mappings(request):
+    """Fetch external node mappings (e.g. from ComfyUI-Manager's list) to map node types to packs"""
+    try:
+        # 1. Try local ComfyUI-Manager file first (best source of truth)
+        import os
+        import json
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        custom_nodes_dir = os.path.dirname(current_dir)
+        manager_path = os.path.join(custom_nodes_dir, 'ComfyUI-Manager', 'extension-node-map.json')
+        
+        if os.path.exists(manager_path):
+            try:
+                with open(manager_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    logger.info(f"Nitra: Loaded node mappings from local ComfyUI-Manager: {len(data)} entries")
+                    return web.json_response(data)
+            except Exception as e:
+                logger.warning(f"Nitra: Failed to read local ComfyUI-Manager map: {e}")
+
+        # 2. Fallback to GitHub
+        import requests
+        mapping_url = "https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/extension-node-map.json"
+        
+        response = requests.get(mapping_url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        return web.json_response(data)
+    except Exception as e:
+        logger.error(f"Nitra: Failed to fetch node mappings: {e}")
+        return web.json_response({}, status=200)
 
 debug_log("Routes registered successfully")

@@ -10,24 +10,41 @@ export function ListItem({
     meta, 
     tags = [], 
     checked = false,
-    onChange 
+    disabled = false,
+    onChange,
+    rightContent
 }) {
-    const checkbox = input({
+    const checkboxId = `item-${id}`;
+
+    // Fix for core.js setAttribute behavior with booleans
+    // Only pass the prop if it is true.
+    const inputProps = {
         type: 'checkbox',
-        id: `item-${id}`,
+        id: checkboxId,
         value: id,
-        checked,
-        style: { marginRight: '12px' },
+        style: { marginRight: '15px', transform: 'scale(1.1)', cursor: disabled ? 'default' : 'pointer' },
         onClick: (e) => {
             e.stopPropagation();
-            if (onChange) onChange(e.target.checked);
+            if (!disabled && onChange) onChange(e.target.checked);
         }
-    });
+    };
+
+    if (checked) inputProps.checked = 'checked';
+    if (disabled) inputProps.disabled = 'disabled';
+
+    const checkbox = input(inputProps);
+    
+    // Title row with space-between
+    const titleRow = div(
+        { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' } },
+        div({ className: 'nitra-list-item-title', style: { fontSize: '1.1em', fontWeight: 'bold' } }, title || 'Unnamed Item'),
+        rightContent && div({ className: 'nitra-list-item-right', style: { marginLeft: '10px', fontSize: '0.95em', opacity: 0.8 } }, rightContent)
+    );
     
     const content = div(
-        { style: { flex: 1 } },
-        div({ className: 'nitra-list-item-title' }, title || 'Unnamed Item'),
-        div({ className: 'nitra-list-item-description' }, description || 'No description available'),
+        { style: { flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' } },
+        titleRow,
+        description && div({ className: 'nitra-list-item-description' }, description),
         meta && div({ className: 'nitra-list-item-meta' }, meta),
         tags.length > 0 && div(
             { style: { marginTop: '4px' } },
@@ -38,19 +55,20 @@ export function ListItem({
     return div(
         {
             className: 'nitra-list-item',
-            onClick: () => document.getElementById(`item-${id}`).click()
+            style: {
+                opacity: disabled ? 0.6 : 1,
+                cursor: disabled ? 'default' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '12px 16px'
+            },
+            onClick: () => {
+                if (disabled) return;
+                const el = document.getElementById(checkboxId);
+                if (el) el.click();
+            }
         },
         checkbox,
         content
     );
 }
-
-
-
-
-
-
-
-
-
-

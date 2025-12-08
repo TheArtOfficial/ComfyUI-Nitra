@@ -15,6 +15,7 @@ import { renderModels } from '../models/ui.js';
 import { updateModelDownloadButton } from '../models/selection.js';
 import { pollForModelCompletion, cancelModelDownload, resetModelDownloadButton } from '../models/download.js';
 import { updateDialogForLogin } from './dialog.js';
+import { renderInstallMissing } from './installMissing.js';
 import { createCloseButton } from './components/CloseButton.js';
 import { handleOptimizerUpdate, handleOptimizerUpdateNitra, handleOptimizerRestart, handleOptimizerRefresh } from '../optimizer/handlers.js';
 import { showPyTorchModal, showSageAttentionModal, showONNXModal, showTritonWindowsModal, showCudaToolkitModal, showBuildToolsModal, showBuildToolsShellModal } from '../optimizer/package-modals.js';
@@ -24,6 +25,7 @@ import { getDeviceIdentity, fetchRegisteredDevices, registerCurrentDevice } from
 let lastActiveTab = 'optimizer';
 
 export function createUpdateInterface() {
+    console.log("Nitra: createUpdateInterface called");
     const updatePanel = document.createElement("div");
     prefetchWorkflowHfToken();
     // Initialize license status (restores cache immediately, fetches fresh in background)
@@ -417,7 +419,7 @@ export function createUpdateInterface() {
                     <button id="nitra-tab-optimizer" class="nitra-tab ${lastActiveTab === 'optimizer' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'optimizer'}" aria-controls="nitra-optimizer-content">ComfyUI Optimizer</button>
                     <button id="nitra-tab-workflows" class="nitra-tab ${lastActiveTab === 'workflows' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'workflows'}" aria-controls="nitra-workflows-content">Workflows</button>
                     <button id="nitra-tab-models" class="nitra-tab ${lastActiveTab === 'models' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'models'}" aria-controls="nitra-models-content">Models</button>
-                    <button id="nitra-tab-install-missing" class="nitra-tab" role="tab" disabled style="opacity: 0.5; cursor: not-allowed;">Install Missing (coming soon!)</button>
+                    <button id="nitra-tab-install-missing" class="nitra-tab ${lastActiveTab === 'install-missing' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'install-missing'}" aria-controls="nitra-install-missing-content">Install Missing</button>
                     <button id="nitra-tab-user-config" class="nitra-tab ${lastActiveTab === 'user-config' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'user-config'}" aria-controls="nitra-user-config-content">User Configuration</button>
                     <button id="nitra-tab-help" class="nitra-tab ${lastActiveTab === 'help' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'help'}" aria-controls="nitra-help-content">How can we help?</button>
                     <button id="nitra-logout-btn" class="nitra-tab" role="tab">Logout</button>
@@ -790,6 +792,10 @@ export function createUpdateInterface() {
                         </div>
                     </div>
 
+                    <!-- Install Missing Tab Panel -->
+                    <div class="p-tabpanel install-missing-panel" id="nitra-install-missing-content" tabindex="0" role="tabpanel" aria-labelledby="nitra-tab-install-missing" data-pc-name="tabpanel" data-p-active="${lastActiveTab === 'install-missing'}" style="flex: 1; display: ${lastActiveTab === 'install-missing' ? 'flex' : 'none'}; flex-direction: column; height: 100%; overflow: hidden; padding: 20px;">
+                    </div>
+
                     <!-- User Configuration Tab Panel -->
                     <div class="p-tabpanel user-config-panel" id="nitra-user-config-content" tabindex="0" role="tabpanel" aria-labelledby="nitra-tab-user-config" data-pc-name="tabpanel" data-p-active="false" style="flex: 1; display: none; flex-direction: column; height: 100%; overflow: auto; padding: 36px;">
                         <div class="nitra-modern-card" style="padding: 24px; width: 100%; box-sizing: border-box;">
@@ -966,6 +972,7 @@ export function createUpdateInterface() {
         'nitra-optimizer-content',
         'nitra-workflows-content',
         'nitra-models-content',
+        'nitra-install-missing-content',
         'nitra-user-config-content',
         'nitra-help-content'
     ];
@@ -1000,6 +1007,10 @@ export function createUpdateInterface() {
             content.classList.toggle('p-tabpanel-active', isActive);
             content.setAttribute('data-p-active', isActive ? 'true' : 'false');
             content.style.display = isActive ? 'flex' : 'none';
+
+            if (isActive && normalizedTab === 'install-missing') {
+                renderInstallMissing(content);
+            }
         });
 
         if (normalizedTab === 'workflows') {
@@ -1138,7 +1149,19 @@ export function createUpdateInterface() {
     tabButtons.forEach(button => {
         button.onclick = () => {
             const tabId = button.id.replace('nitra-tab-', '');
+            console.log("Nitra: Tab clicked:", tabId);
             showTab(tabId);
+
+            // Ensure install missing render fires even if tab state was already active
+            if (tabId === 'install-missing') {
+                console.log("Nitra: Manually triggering install-missing render");
+                const panel = updatePanel.querySelector('#nitra-install-missing-content');
+                if (panel) {
+                    renderInstallMissing(panel);
+                } else {
+                    console.error("Nitra: install-missing panel not found!");
+                }
+            }
         };
     });
     
