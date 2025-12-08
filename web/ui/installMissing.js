@@ -647,7 +647,8 @@ async function startDependencyAnalysis(container) {
                     name: m.modelName || m.name,
                     // Try multiple fields for URL; some APIs use modelUrl/fileUrl/downloadUrl
                     url: m.url || m.modelUrl || m.fileUrl || m.downloadUrl || m.href || '',
-                    hf_token_required: m.hfTokenRequired
+                    hf_token_required: m.hfTokenRequired,
+                    installFolder: m.installFolder || 'diffusion_models'
                 }));
 
             const nodesToInstall = nodeResults.matches
