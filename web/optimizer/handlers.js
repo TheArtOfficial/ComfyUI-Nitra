@@ -10,7 +10,7 @@ import { Button } from '../ui/components/Button.js';
 import { div, h3, p, strong } from '../ui/components/core.js';
 import { fetchComfyConfigsByCategory, createCategorySection, createComfyConfigButton, getCategoryButtonStyle, getAlternatingButtonStyle } from './comfy-config-api.js';
 import { showSageAttentionModal } from './package-modals.js';
-import { showRestartPrompt, showRefreshPrompt } from '../ui/systemPrompts.js';
+import { showRestartPrompt, showRefreshPrompt, showConfirmRestart, showConfirmRefresh } from '../ui/systemPrompts.js';
 
 // Cache for package information to avoid repeated API calls
 const packageInfoCache = new Map();
@@ -1977,7 +1977,8 @@ export async function handleOptimizerUpdateNitra(button) {
 }
 
 export async function handleOptimizerRestart(button) {
-    if (confirm("Are you sure you want to restart ComfyUI? Unsaved work may be lost.")) {
+    const confirmed = await showConfirmRestart();
+    if (confirmed) {
         const originalText = button.textContent;
         button.disabled = true;
         button.textContent = "Restarting ComfyUI...";
@@ -2001,7 +2002,7 @@ export async function handleOptimizerRestart(button) {
             if (response.ok) {
                 if (result && result.success === false) {
                     const message = result?.error || "Restart failed.";
-                    alert(message);
+                    console.error("Nitra: Restart failed:", message);
                     button.disabled = false;
                     button.textContent = originalText;
                     return;
@@ -2017,7 +2018,7 @@ export async function handleOptimizerRestart(button) {
             }
 
             const message = result?.error || `Restart failed (${response.status})`;
-            alert(message);
+            console.error("Nitra: Restart failed:", message);
             button.disabled = false;
             button.textContent = originalText;
         } catch (error) {
@@ -2030,8 +2031,9 @@ export async function handleOptimizerRestart(button) {
     }
 }
 
-export function handleOptimizerRefresh() {
-    if (confirm("Are you sure you want to refresh the page? Any unsaved data may be lost.")) {
+export async function handleOptimizerRefresh() {
+    const confirmed = await showConfirmRefresh();
+    if (confirmed) {
         // Set a flag to show splash screen after refresh
         localStorage.setItem('nitra_show_splash_after_refresh', 'true');
         window.location.reload();

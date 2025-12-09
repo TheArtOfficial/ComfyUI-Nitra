@@ -8,6 +8,8 @@ const MODAL_KEYS = {
     restart: 'nitra-restart-required',
     postRestartRefresh: 'post-restart-refresh',
     hfToken: 'nitra-hf-token-required',
+    confirmRestart: 'nitra-confirm-restart',
+    confirmRefresh: 'nitra-confirm-refresh',
 };
 
 const SPLASH_FLAG_KEY = 'nitra_show_splash_after_refresh';
@@ -380,5 +382,101 @@ export function showHuggingFaceTokenPrompt(options = {}) {
     });
 
     mountModal(overlay, MODAL_KEYS.hfToken);
+}
+
+/**
+ * Show a Nitra-themed confirmation dialog for restarting ComfyUI.
+ * Returns a Promise that resolves to true if confirmed, false if cancelled.
+ */
+export function showConfirmRestart() {
+    return new Promise((resolve) => {
+        if (modalExists(MODAL_KEYS.confirmRestart)) {
+            resolve(false);
+            return;
+        }
+
+        let overlay = null;
+        const close = (result) => {
+            removeModal(overlay);
+            overlay = null;
+            resolve(result);
+        };
+
+        const cancelButton = Button({
+            text: 'Cancel',
+            variant: 'primary',
+            onClick: () => close(false)
+        });
+
+        const confirmButton = Button({
+            text: 'Restart ComfyUI',
+            variant: 'secondary',
+            onClick: () => close(true)
+        });
+
+        overlay = Modal({
+            title: 'Restart ComfyUI',
+            maxWidth: '480px',
+            onClose: () => close(false),
+            showCloseButton: true,
+            children: [
+                div(
+                    { className: 'nitra-modal-message' },
+                    'Are you sure you want to restart ComfyUI?'
+                ),
+                div({ className: 'nitra-modal-actions' }, cancelButton, confirmButton)
+            ]
+        });
+
+        mountModal(overlay, MODAL_KEYS.confirmRestart);
+    });
+}
+
+/**
+ * Show a Nitra-themed confirmation dialog for refreshing the page.
+ * Returns a Promise that resolves to true if confirmed, false if cancelled.
+ */
+export function showConfirmRefresh() {
+    return new Promise((resolve) => {
+        if (modalExists(MODAL_KEYS.confirmRefresh)) {
+            resolve(false);
+            return;
+        }
+
+        let overlay = null;
+        const close = (result) => {
+            removeModal(overlay);
+            overlay = null;
+            resolve(result);
+        };
+
+        const cancelButton = Button({
+            text: 'Cancel',
+            variant: 'primary',
+            onClick: () => close(false)
+        });
+
+        const confirmButton = Button({
+            text: 'Refresh Page',
+            variant: 'secondary',
+            onClick: () => close(true)
+        });
+
+        overlay = Modal({
+            title: 'Refresh Page',
+            maxWidth: '480px',
+            onClose: () => close(false),
+            showCloseButton: true,
+            children: [
+                div(
+                    { className: 'nitra-modal-message' },
+                    'Are you sure you want to refresh the page? Any unsaved data may be lost.'
+                ),
+                div({ className: 'nitra-modal-actions' }, cancelButton, confirmButton)
+            ]
+        });
+
+        mountModal(overlay, MODAL_KEYS.confirmRefresh);
+    });
 }
 
