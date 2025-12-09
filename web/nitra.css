@@ -555,7 +555,7 @@ img.workflow-media-layer {
     border-bottom: 1px solid var(--nitra-border);
     cursor: pointer;
     font-weight: 700;
-    font-size: 1.5em;
+    font-size: 1.125em;
     transition: background 0.2s ease, color 0.2s ease;
     text-align: left;
 }

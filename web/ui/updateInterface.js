@@ -424,6 +424,16 @@ export function createUpdateInterface() {
                     <button id="nitra-tab-help" class="nitra-tab ${lastActiveTab === 'help' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'help'}" aria-controls="nitra-help-content">How can we help?</button>
                     <button id="nitra-tab-documentation" class="nitra-tab ${lastActiveTab === 'documentation' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'documentation'}" aria-controls="nitra-documentation-content">Documentation</button>
                     <button id="nitra-logout-btn" class="nitra-tab" role="tab">Logout</button>
+                    
+                    <!-- Utility Buttons -->
+                    <div style="margin-top: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <button id="nitra-nav-restart-btn" class="nitra-btn nitra-btn-primary" style="width: 100%; height: 40px; padding: 10px 12px; font-size: 1em; box-sizing: border-box;">
+                            Restart ComfyUI
+                        </button>
+                        <button id="nitra-nav-refresh-btn" class="nitra-btn nitra-btn-primary" style="width: 100%; height: 40px; padding: 10px 12px; font-size: 1em; box-sizing: border-box;">
+                            Refresh Page
+                        </button>
+                    </div>
                 </nav>
             </aside>
             
@@ -474,23 +484,6 @@ export function createUpdateInterface() {
                                 Update ComfyUI
                             </button>
                             
-                            <!-- Restart Button -->
-                                <button id="nitra-optimizer-restart-btn" class="nitra-btn nitra-btn-primary nitra-btn-full-width" style="
-                                padding: 16px 20px;
-                                font-size: 1.1em;
-                                    height: 100%;
-                            ">
-                                Restart ComfyUI
-                            </button>
-                        
-                        <!-- Refresh Button -->
-                                <button id="nitra-optimizer-refresh-btn" class="nitra-btn nitra-btn-primary nitra-btn-full-width" style="
-                            padding: 16px 20px;
-                            font-size: 1.1em;
-                                    height: 100%;
-                        ">
-                            Refresh Page
-                        </button>
                             </div>
                         </div>
                     </div>
@@ -1849,16 +1842,16 @@ export function createUpdateInterface() {
         optimizerUpdateBtn.onclick = () => handleOptimizerUpdate(optimizerUpdateBtn);
     }
     
-    // Optimizer Restart Button
-    const optimizerRestartBtn = updatePanel.querySelector("#nitra-optimizer-restart-btn");
-    if (optimizerRestartBtn) {
-        optimizerRestartBtn.onclick = () => handleOptimizerRestart(optimizerRestartBtn);
+    // Nav Restart Button
+    const navRestartBtn = updatePanel.querySelector("#nitra-nav-restart-btn");
+    if (navRestartBtn) {
+        navRestartBtn.onclick = () => handleOptimizerRestart(navRestartBtn);
     }
     
-    // Optimizer Refresh Button
-    const optimizerRefreshBtn = updatePanel.querySelector("#nitra-optimizer-refresh-btn");
-    if (optimizerRefreshBtn) {
-        optimizerRefreshBtn.onclick = () => handleOptimizerRefresh();
+    // Nav Refresh Button
+    const navRefreshBtn = updatePanel.querySelector("#nitra-nav-refresh-btn");
+    if (navRefreshBtn) {
+        navRefreshBtn.onclick = () => handleOptimizerRefresh();
     }
     
     
