@@ -22,7 +22,7 @@ import { showPyTorchModal, showSageAttentionModal, showONNXModal, showTritonWind
 import { showHuggingFaceTokenPrompt } from './systemPrompts.js';
 import { getDeviceIdentity, fetchRegisteredDevices, registerCurrentDevice } from '../device/api.js';
 
-let lastActiveTab = 'optimizer';
+let lastActiveTab = 'workflows';
 
 export function createUpdateInterface() {
     console.log("Nitra: createUpdateInterface called");
@@ -416,10 +416,10 @@ export function createUpdateInterface() {
             
                 <!-- Tab Navigation -->
                 <nav class="p-tabview-nav" style="flex: 1; display: flex; flex-direction: column;">
-                    <button id="nitra-tab-optimizer" class="nitra-tab ${lastActiveTab === 'optimizer' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'optimizer'}" aria-controls="nitra-optimizer-content">ComfyUI Optimizer</button>
                     <button id="nitra-tab-workflows" class="nitra-tab ${lastActiveTab === 'workflows' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'workflows'}" aria-controls="nitra-workflows-content">Workflows</button>
-                    <button id="nitra-tab-models" class="nitra-tab ${lastActiveTab === 'models' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'models'}" aria-controls="nitra-models-content">Models</button>
                     <button id="nitra-tab-install-missing" class="nitra-tab ${lastActiveTab === 'install-missing' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'install-missing'}" aria-controls="nitra-install-missing-content">Install Missing (Beta)</button>
+                    <button id="nitra-tab-models" class="nitra-tab ${lastActiveTab === 'models' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'models'}" aria-controls="nitra-models-content">Models</button>
+                    <button id="nitra-tab-optimizer" class="nitra-tab ${lastActiveTab === 'optimizer' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'optimizer'}" aria-controls="nitra-optimizer-content">ComfyUI Optimizer</button>
                     <button id="nitra-tab-user-config" class="nitra-tab ${lastActiveTab === 'user-config' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'user-config'}" aria-controls="nitra-user-config-content">User Configuration</button>
                     <button id="nitra-tab-help" class="nitra-tab ${lastActiveTab === 'help' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'help'}" aria-controls="nitra-help-content">How can we help?</button>
                     <button id="nitra-tab-documentation" class="nitra-tab ${lastActiveTab === 'documentation' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'documentation'}" aria-controls="nitra-documentation-content">Documentation</button>
@@ -995,42 +995,42 @@ export function createUpdateInterface() {
 
                         <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 24px; margin-bottom: 24px;">
                             <h4 style="color: #ffffff; font-size: 14px; font-weight: 600; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.05em;">Quick Links</h4>
-                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
                                 <a href="https://github.com/TheArtOfficial/ComfyUI-Nitra#installing-nitra" target="_blank" rel="noopener noreferrer" style="
-                                    display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,0.05); border-radius: 8px; color: rgba(160, 187, 196, 0.9); text-decoration: none; font-size: 13px; transition: background 0.2s;
-                                " onmouseover="this.style.background='rgba(255,255,255,0.1)';" onmouseout="this.style.background='rgba(255,255,255,0.05)';">
+                                    display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: #0b0b0b; border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease; cursor: pointer;
+                                " onmouseover="this.style.background='#1a1a1a'; this.style.borderColor='rgba(255,255,255,0.4)'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#0b0b0b'; this.style.borderColor='rgba(255,255,255,0.2)'; this.style.transform='translateY(0)';">
                                     Installation Guide
-                                    <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.5;"><path d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></svg>
+                                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.6;"><path d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></svg>
                                 </a>
                                 <a href="https://github.com/TheArtOfficial/ComfyUI-Nitra#using-nitra" target="_blank" rel="noopener noreferrer" style="
-                                    display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,0.05); border-radius: 8px; color: rgba(160, 187, 196, 0.9); text-decoration: none; font-size: 13px; transition: background 0.2s;
-                                " onmouseover="this.style.background='rgba(255,255,255,0.1)';" onmouseout="this.style.background='rgba(255,255,255,0.05)';">
+                                    display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: #0b0b0b; border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease; cursor: pointer;
+                                " onmouseover="this.style.background='#1a1a1a'; this.style.borderColor='rgba(255,255,255,0.4)'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#0b0b0b'; this.style.borderColor='rgba(255,255,255,0.2)'; this.style.transform='translateY(0)';">
                                     Using Nitra
-                                    <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.5;"><path d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></svg>
+                                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.6;"><path d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></svg>
                                 </a>
                                 <a href="https://github.com/TheArtOfficial/ComfyUI-Nitra#comfyui-optimizer" target="_blank" rel="noopener noreferrer" style="
-                                    display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,0.05); border-radius: 8px; color: rgba(160, 187, 196, 0.9); text-decoration: none; font-size: 13px; transition: background 0.2s;
-                                " onmouseover="this.style.background='rgba(255,255,255,0.1)';" onmouseout="this.style.background='rgba(255,255,255,0.05)';">
+                                    display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: #0b0b0b; border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease; cursor: pointer;
+                                " onmouseover="this.style.background='#1a1a1a'; this.style.borderColor='rgba(255,255,255,0.4)'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#0b0b0b'; this.style.borderColor='rgba(255,255,255,0.2)'; this.style.transform='translateY(0)';">
                                     ComfyUI Optimizer
-                                    <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.5;"><path d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></svg>
+                                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.6;"><path d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></svg>
                                 </a>
                                 <a href="https://github.com/TheArtOfficial/ComfyUI-Nitra#workflow-installer" target="_blank" rel="noopener noreferrer" style="
-                                    display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,0.05); border-radius: 8px; color: rgba(160, 187, 196, 0.9); text-decoration: none; font-size: 13px; transition: background 0.2s;
-                                " onmouseover="this.style.background='rgba(255,255,255,0.1)';" onmouseout="this.style.background='rgba(255,255,255,0.05)';">
+                                    display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: #0b0b0b; border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease; cursor: pointer;
+                                " onmouseover="this.style.background='#1a1a1a'; this.style.borderColor='rgba(255,255,255,0.4)'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#0b0b0b'; this.style.borderColor='rgba(255,255,255,0.2)'; this.style.transform='translateY(0)';">
                                     Workflow Installer
-                                    <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.5;"><path d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></svg>
+                                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.6;"><path d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></svg>
                                 </a>
                                 <a href="https://github.com/TheArtOfficial/ComfyUI-Nitra#runpod-template" target="_blank" rel="noopener noreferrer" style="
-                                    display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,0.05); border-radius: 8px; color: rgba(160, 187, 196, 0.9); text-decoration: none; font-size: 13px; transition: background 0.2s;
-                                " onmouseover="this.style.background='rgba(255,255,255,0.1)';" onmouseout="this.style.background='rgba(255,255,255,0.05)';">
+                                    display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: #0b0b0b; border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease; cursor: pointer;
+                                " onmouseover="this.style.background='#1a1a1a'; this.style.borderColor='rgba(255,255,255,0.4)'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#0b0b0b'; this.style.borderColor='rgba(255,255,255,0.2)'; this.style.transform='translateY(0)';">
                                     RunPod Template
-                                    <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.5;"><path d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></svg>
+                                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.6;"><path d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></svg>
                                 </a>
                                 <a href="https://github.com/TheArtOfficial/ComfyUI-Nitra#docker" target="_blank" rel="noopener noreferrer" style="
-                                    display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,0.05); border-radius: 8px; color: rgba(160, 187, 196, 0.9); text-decoration: none; font-size: 13px; transition: background 0.2s;
-                                " onmouseover="this.style.background='rgba(255,255,255,0.1)';" onmouseout="this.style.background='rgba(255,255,255,0.05)';">
+                                    display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: #0b0b0b; border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease; cursor: pointer;
+                                " onmouseover="this.style.background='#1a1a1a'; this.style.borderColor='rgba(255,255,255,0.4)'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#0b0b0b'; this.style.borderColor='rgba(255,255,255,0.2)'; this.style.transform='translateY(0)';">
                                     Docker Setup
-                                    <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.5;"><path d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></svg>
+                                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.6;"><path d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></svg>
                                 </a>
                             </div>
                         </div>
@@ -1124,7 +1124,7 @@ export function createUpdateInterface() {
 
     function showTab(tabId) {
         const tabExists = tabId && updatePanel.querySelector(`#nitra-tab-${tabId}`);
-        const normalizedTab = tabExists ? tabId : (lastActiveTab && updatePanel.querySelector(`#nitra-tab-${lastActiveTab}`) ? lastActiveTab : 'optimizer');
+        const normalizedTab = tabExists ? tabId : (lastActiveTab && updatePanel.querySelector(`#nitra-tab-${lastActiveTab}`) ? lastActiveTab : 'workflows');
         lastActiveTab = normalizedTab;
 
         tabButtons.forEach(btn => {
