@@ -88,10 +88,8 @@ export function createLoginForm() {
                 width: '100%',
                 maxWidth: '360px',
                 background: 'transparent',
-                border: '1px solid #ffffff',
-                borderRadius: '12px',
-                padding: '20px',
-                textAlign: 'left'
+                marginTop: '-6px',
+                textAlign: 'center'
             }
         },
             h3(
