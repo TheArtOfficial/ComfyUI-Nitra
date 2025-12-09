@@ -21,6 +21,58 @@ export function cancelWorkflowsFetch() {
         workflowsFetchController = null;
     }
 }
+
+/**
+ * Check if any cached workflow media URLs are expired or about to expire.
+ * This helps detect when we need to rehydrate media even if metadata cache is valid.
+ */
+export function hasExpiredMedia() {
+    if (!Array.isArray(state.workflowsData) || state.workflowsData.length === 0) {
+        return false;
+    }
+    
+    const now = Date.now();
+    const bufferMs = 5 * 60 * 1000; // 5 minute buffer
+    
+    for (const workflow of state.workflowsData) {
+        if (!workflow || !Array.isArray(workflow.media)) {
+            continue;
+        }
+        
+        for (const mediaItem of workflow.media) {
+            if (!mediaItem) continue;
+            
+            // Check explicit expiry field
+            const expiresAt = mediaItem.fileUrlExpiresAt || mediaItem.file_url_expires_at;
+            if (expiresAt) {
+                const expiryTime = Date.parse(expiresAt);
+                if (!Number.isNaN(expiryTime) && expiryTime < now + bufferMs) {
+                    return true;
+                }
+            }
+            
+            // Check S3 presigned URL Expires parameter
+            const source = mediaItem.fileUrl || mediaItem.file_url || mediaItem.url || '';
+            if (source) {
+                try {
+                    const urlObj = new URL(source, 'http://dummy.com');
+                    const expiresParam = urlObj.searchParams.get('Expires');
+                    if (expiresParam) {
+                        const expiryTimestamp = parseInt(expiresParam, 10) * 1000;
+                        if (!Number.isNaN(expiryTimestamp) && expiryTimestamp < now + bufferMs) {
+                            return true;
+                        }
+                    }
+                } catch (e) {
+                    // Ignore URL parsing errors
+                }
+            }
+        }
+    }
+    
+    return false;
+}
+
 const MEDIA_REFRESH_SAFETY_MS = 2 * 60 * 1000;
 let mediaRefreshTimer = null;
 

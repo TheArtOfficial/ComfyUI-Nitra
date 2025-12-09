@@ -6,7 +6,7 @@ import { getWebsiteBaseUrl } from '../core/config.js';
 import { formatLicenseStatus, fetchLicenseStatus, initializeLicenseStatus } from '../license/status.js';
 import { logoutWebsite } from '../auth/logout.js';
 import { updateListHeights } from './layout.js';
-import { loadWorkflows, checkWorkflowsForHFTokenRequirement, isWorkflowsFetchInFlight, ensureWorkflowsDataReady } from '../workflows/api.js';
+import { loadWorkflows, checkWorkflowsForHFTokenRequirement, isWorkflowsFetchInFlight, ensureWorkflowsDataReady, hasExpiredMedia } from '../workflows/api.js';
 import { renderWorkflows } from '../workflows/ui.js';
 import { updateWorkflowInstallButton, prefetchWorkflowHfToken, setWorkflowHfToken } from '../workflows/selection.js';
 import { pollForWorkflowCompletion, cancelWorkflowInstall, resetWorkflowInstallButton } from '../workflows/installation.js';
@@ -1039,9 +1039,14 @@ export function createUpdateInterface() {
                 if (ready && typeof renderWorkflows === 'function') {
                     renderWorkflows();
                 }
+                
+                // Always try to refresh workflows when opening the tab to rehydrate expired media URLs.
+                // If the user closes the dialog, cancelWorkflowsFetch() will abort the request.
                 const fetchInFlight = typeof isWorkflowsFetchInFlight === 'function' && isWorkflowsFetchInFlight();
-                if (hadCachedData && typeof loadWorkflows === 'function' && !fetchInFlight) {
-                    loadWorkflows({ backgroundRefresh: true, force: false }).then(success => {
+                if (typeof loadWorkflows === 'function' && !fetchInFlight) {
+                    // Force refresh if media URLs are expired, otherwise do a normal background refresh
+                    const mediaExpired = typeof hasExpiredMedia === 'function' && hasExpiredMedia();
+                    loadWorkflows({ backgroundRefresh: true, force: mediaExpired }).then(success => {
                         if (success && typeof renderWorkflows === 'function') {
                             renderWorkflows();
                         }
