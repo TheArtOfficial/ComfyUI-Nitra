@@ -1977,57 +1977,68 @@ export async function handleOptimizerUpdateNitra(button) {
 }
 
 export async function handleOptimizerRestart(button) {
+    const originalText = button.textContent;
+    
+    // Immediately show "Restarting..." state
+    button.disabled = true;
+    button.textContent = "Restarting...";
+    
+    // Show confirmation dialog
     const confirmed = await showConfirmRestart();
-    if (confirmed) {
-        const originalText = button.textContent;
-        button.disabled = true;
-        button.textContent = "Restarting ComfyUI...";
-        
-        try {
-            const response = await fetch('/nitra/restart', { method: 'GET' });
-            let result = null;
+    
+    if (!confirmed) {
+        // User cancelled - restore button
+        button.disabled = false;
+        button.textContent = originalText;
+        return;
+    }
+    
+    // User confirmed - initiate restart (dialog already closed)
+    // Start polling to detect when server comes back
+    const pollForReconnection = () => {
+        const checkServer = async () => {
             try {
-                result = await response.json();
-            } catch (parseError) {
-                // response might close before JSON is returned; that's fine
-                console.log("Nitra: Restart response closed before JSON parsed", parseError);
-            }
-
-            console.log("Nitra: Restart response received", {
-                status: response.status,
-                ok: response.ok,
-                payload: result
-            });
-
-            if (response.ok) {
-                if (result && result.success === false) {
-                    const message = result?.error || "Restart failed.";
-                    console.error("Nitra: Restart failed:", message);
+                const response = await fetch('/nitra/check-versions', { method: 'GET' });
+                if (response.ok) {
+                    // Server is back online - reset button
                     button.disabled = false;
                     button.textContent = originalText;
                     return;
                 }
-
-                console.log("Nitra: Restart accepted by server (response ok)");
-                button.textContent = "Restarting...";
-                setTimeout(() => {
-                    button.disabled = false;
-                    button.textContent = originalText;
-                }, 4000);
-                return;
+            } catch (e) {
+                // Server still down, keep polling
             }
+            setTimeout(checkServer, 2000);
+        };
+        // Start checking after a delay to let server shut down
+        setTimeout(checkServer, 3000);
+    };
+    
+    try {
+        const response = await fetch('/nitra/restart', { method: 'GET' });
+        let result = null;
+        try {
+            result = await response.json();
+        } catch (parseError) {
+            // response might close before JSON is returned; that's fine
+            console.log("Nitra: Restart response closed before JSON parsed", parseError);
+        }
 
-            const message = result?.error || `Restart failed (${response.status})`;
+        if (response.ok && !(result && result.success === false)) {
+            // Restart initiated successfully - poll for reconnection
+            pollForReconnection();
+        } else {
+            // Restart failed
+            const message = result?.error || "Restart failed.";
             console.error("Nitra: Restart failed:", message);
             button.disabled = false;
             button.textContent = originalText;
-        } catch (error) {
-            // Connection error is expected when server restarts
-            console.log("Nitra: Restart initiated (connection closed as expected)", error);
-            button.disabled = false;
-            button.textContent = originalText;
-            // Don't show error alert - this is expected behavior
         }
+    } catch (error) {
+        // Connection error is expected when server restarts
+        console.log("Nitra: Restart initiated (connection closed as expected)", error);
+        // Server is restarting - poll for reconnection
+        pollForReconnection();
     }
 }
 
