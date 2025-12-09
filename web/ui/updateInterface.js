@@ -422,6 +422,7 @@ export function createUpdateInterface() {
                     <button id="nitra-tab-install-missing" class="nitra-tab ${lastActiveTab === 'install-missing' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'install-missing'}" aria-controls="nitra-install-missing-content">Install Missing (Beta)</button>
                     <button id="nitra-tab-user-config" class="nitra-tab ${lastActiveTab === 'user-config' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'user-config'}" aria-controls="nitra-user-config-content">User Configuration</button>
                     <button id="nitra-tab-help" class="nitra-tab ${lastActiveTab === 'help' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'help'}" aria-controls="nitra-help-content">How can we help?</button>
+                    <button id="nitra-tab-documentation" class="nitra-tab ${lastActiveTab === 'documentation' ? 'nitra-tab-active' : ''}" role="tab" aria-selected="${lastActiveTab === 'documentation'}" aria-controls="nitra-documentation-content">Documentation</button>
                     <button id="nitra-logout-btn" class="nitra-tab" role="tab">Logout</button>
                 </nav>
             </aside>
@@ -958,6 +959,134 @@ export function createUpdateInterface() {
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Documentation Tab Panel -->
+                    <div class="p-tabpanel documentation-panel" id="nitra-documentation-content" tabindex="0" role="tabpanel" aria-labelledby="nitra-tab-documentation" data-pc-name="tabpanel" data-p-active="false" style="flex: 1; display: none; flex-direction: column; height: 100%; overflow: auto; padding: 36px;">
+                        <h3 class="nitra-section-header" style="margin-top: 0; margin-bottom: 16px;">Documentation</h3>
+                        
+                        <p style="color: rgba(160, 187, 196, 0.9); font-size: 14px; margin-bottom: 24px;">
+                            Access the full Nitra documentation on GitHub for installation guides, usage instructions, and feature details.
+                        </p>
+
+                        <a href="https://github.com/TheArtOfficial/ComfyUI-Nitra/blob/main/README.md" target="_blank" rel="noopener noreferrer" style="
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 10px;
+                            padding: 14px 24px;
+                            background: #0b0b0b;
+                            color: #ffffff;
+                            border: 1px solid #ffffff;
+                            border-radius: 10px;
+                            text-decoration: none;
+                            font-weight: 600;
+                            font-size: 15px;
+                            transition: all 0.2s ease;
+                            width: fit-content;
+                            margin-bottom: 32px;
+                        " onmouseover="this.style.background='#1a1a1a'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#0b0b0b'; this.style.transform='translateY(0)';">
+                            <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M19 2H6c-1.206 0-3 .799-3 3v14c0 2.201 1.794 3 3 3h15v-2H6.012C5.55 19.988 5 19.806 5 19s.55-.988 1.012-1H21V4c0-1.103-.897-2-2-2zm0 14H5V5c0-.806.55-.988 1-1h13v12z"/>
+                            </svg>
+                            View Full Documentation
+                            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24" style="margin-left: 4px;">
+                                <path d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/>
+                            </svg>
+                        </a>
+
+                        <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 24px; margin-bottom: 24px;">
+                            <h4 style="color: #ffffff; font-size: 14px; font-weight: 600; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.05em;">Quick Links</h4>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                                <a href="https://github.com/TheArtOfficial/ComfyUI-Nitra#installing-nitra" target="_blank" rel="noopener noreferrer" style="
+                                    display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,0.05); border-radius: 8px; color: rgba(160, 187, 196, 0.9); text-decoration: none; font-size: 13px; transition: background 0.2s;
+                                " onmouseover="this.style.background='rgba(255,255,255,0.1)';" onmouseout="this.style.background='rgba(255,255,255,0.05)';">
+                                    Installation Guide
+                                    <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.5;"><path d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></svg>
+                                </a>
+                                <a href="https://github.com/TheArtOfficial/ComfyUI-Nitra#using-nitra" target="_blank" rel="noopener noreferrer" style="
+                                    display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,0.05); border-radius: 8px; color: rgba(160, 187, 196, 0.9); text-decoration: none; font-size: 13px; transition: background 0.2s;
+                                " onmouseover="this.style.background='rgba(255,255,255,0.1)';" onmouseout="this.style.background='rgba(255,255,255,0.05)';">
+                                    Using Nitra
+                                    <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.5;"><path d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></svg>
+                                </a>
+                                <a href="https://github.com/TheArtOfficial/ComfyUI-Nitra#comfyui-optimizer" target="_blank" rel="noopener noreferrer" style="
+                                    display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,0.05); border-radius: 8px; color: rgba(160, 187, 196, 0.9); text-decoration: none; font-size: 13px; transition: background 0.2s;
+                                " onmouseover="this.style.background='rgba(255,255,255,0.1)';" onmouseout="this.style.background='rgba(255,255,255,0.05)';">
+                                    ComfyUI Optimizer
+                                    <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.5;"><path d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></svg>
+                                </a>
+                                <a href="https://github.com/TheArtOfficial/ComfyUI-Nitra#workflow-installer" target="_blank" rel="noopener noreferrer" style="
+                                    display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,0.05); border-radius: 8px; color: rgba(160, 187, 196, 0.9); text-decoration: none; font-size: 13px; transition: background 0.2s;
+                                " onmouseover="this.style.background='rgba(255,255,255,0.1)';" onmouseout="this.style.background='rgba(255,255,255,0.05)';">
+                                    Workflow Installer
+                                    <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.5;"><path d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></svg>
+                                </a>
+                                <a href="https://github.com/TheArtOfficial/ComfyUI-Nitra#runpod-template" target="_blank" rel="noopener noreferrer" style="
+                                    display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,0.05); border-radius: 8px; color: rgba(160, 187, 196, 0.9); text-decoration: none; font-size: 13px; transition: background 0.2s;
+                                " onmouseover="this.style.background='rgba(255,255,255,0.1)';" onmouseout="this.style.background='rgba(255,255,255,0.05)';">
+                                    RunPod Template
+                                    <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.5;"><path d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></svg>
+                                </a>
+                                <a href="https://github.com/TheArtOfficial/ComfyUI-Nitra#docker" target="_blank" rel="noopener noreferrer" style="
+                                    display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,0.05); border-radius: 8px; color: rgba(160, 187, 196, 0.9); text-decoration: none; font-size: 13px; transition: background 0.2s;
+                                " onmouseover="this.style.background='rgba(255,255,255,0.1)';" onmouseout="this.style.background='rgba(255,255,255,0.05)';">
+                                    Docker Setup
+                                    <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.5;"><path d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></svg>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 24px; margin-bottom: 24px;">
+                            <h4 style="color: #ffffff; font-size: 14px; font-weight: 600; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.05em;">Premium Features</h4>
+                            <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px;">
+                                <li style="display: flex; align-items: center; gap: 10px; color: rgba(160, 187, 196, 0.9); font-size: 13px;">
+                                    <svg width="16" height="16" fill="#22c55e" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                                    100+ curated professional workflows
+                                </li>
+                                <li style="display: flex; align-items: center; gap: 10px; color: rgba(160, 187, 196, 0.9); font-size: 13px;">
+                                    <svg width="16" height="16" fill="#22c55e" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                                    Install missing models in workflows
+                                </li>
+                                <li style="display: flex; align-items: center; gap: 10px; color: rgba(160, 187, 196, 0.9); font-size: 13px;">
+                                    <svg width="16" height="16" fill="#22c55e" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                                    Searchable subgraphs as nodes
+                                </li>
+                                <li style="display: flex; align-items: center; gap: 10px; color: rgba(160, 187, 196, 0.9); font-size: 13px;">
+                                    <svg width="16" height="16" fill="#22c55e" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                                    Model Auto-Installer
+                                </li>
+                                <li style="display: flex; align-items: center; gap: 10px; color: rgba(160, 187, 196, 0.9); font-size: 13px;">
+                                    <svg width="16" height="16" fill="#22c55e" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                                    Priority support
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 24px;">
+                            <h4 style="color: #ffffff; font-size: 14px; font-weight: 600; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.05em;">Free Features</h4>
+                            <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px;">
+                                <li style="display: flex; align-items: center; gap: 10px; color: rgba(160, 187, 196, 0.9); font-size: 13px;">
+                                    <svg width="16" height="16" fill="#9ca3af" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                                    PyTorch Version Switcher
+                                </li>
+                                <li style="display: flex; align-items: center; gap: 10px; color: rgba(160, 187, 196, 0.9); font-size: 13px;">
+                                    <svg width="16" height="16" fill="#9ca3af" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                                    Sage Attention Installer
+                                </li>
+                                <li style="display: flex; align-items: center; gap: 10px; color: rgba(160, 187, 196, 0.9); font-size: 13px;">
+                                    <svg width="16" height="16" fill="#9ca3af" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                                    Windows Triton Installer
+                                </li>
+                                <li style="display: flex; align-items: center; gap: 10px; color: rgba(160, 187, 196, 0.9); font-size: 13px;">
+                                    <svg width="16" height="16" fill="#9ca3af" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                                    CUDA Toolkit Installer
+                                </li>
+                                <li style="display: flex; align-items: center; gap: 10px; color: rgba(160, 187, 196, 0.9); font-size: 13px;">
+                                    <svg width="16" height="16" fill="#9ca3af" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                                    Windows Build Tools Installer
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
             
             <div id="nitra-update-status" style="
                 padding: 12px;
@@ -974,7 +1103,8 @@ export function createUpdateInterface() {
         'nitra-models-content',
         'nitra-install-missing-content',
         'nitra-user-config-content',
-        'nitra-help-content'
+        'nitra-help-content',
+        'nitra-documentation-content'
     ];
 
     panelIds.forEach(id => {
