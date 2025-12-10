@@ -4130,7 +4130,22 @@ async def get_custom_nodes(request):
 
 @routes.get('/nitra/node-mappings')
 async def get_node_mappings(request):
-    """Legacy endpoint no longer needed; return empty mappings."""
-    return web.json_response({})
+    """Return extension-node-map from ComfyUI-Manager for node type matching."""
+    try:
+        # Look for ComfyUI-Manager's extension-node-map.json in sibling custom_nodes folder
+        nitra_dir = os.path.dirname(__file__)
+        custom_nodes_dir = os.path.dirname(nitra_dir)
+        manager_map_path = os.path.join(custom_nodes_dir, 'ComfyUI-Manager', 'extension-node-map.json')
+        
+        if os.path.exists(manager_map_path):
+            with open(manager_map_path, 'r', encoding='utf-8') as f:
+                node_mappings = json.load(f)
+            return web.json_response(node_mappings)
+        else:
+            logger.warning(f"Nitra: extension-node-map.json not found at {manager_map_path}")
+            return web.json_response({})
+    except Exception as e:
+        logger.error(f"Nitra: Failed to load node mappings: {e}")
+        return web.json_response({})
 
 debug_log("Routes registered successfully")

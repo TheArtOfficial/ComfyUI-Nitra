@@ -177,8 +177,18 @@ export function matchCustomNodes(detectedIds, detectedCnrIds = [], detectedAuxId
 
     // 3. Process Node Types (Legacy/Standard method)
     // Pre-build a map of NodeType -> Set(PackURLs) for faster lookup
+    // Handle ComfyUI-Manager extension-node-map.json format: { url: [nodeTypesArray, metadata] }
     const nodeTypeToPackUrls = new Map();
-    Object.entries(nodeMappings).forEach(([url, nodeTypes]) => {
+    Object.entries(nodeMappings).forEach(([url, value]) => {
+        // Handle both formats:
+        // - ComfyUI-Manager format: [["NodeType1", "NodeType2"], {title_aux: "Name"}]
+        // - Simple format: ["NodeType1", "NodeType2"]
+        let nodeTypes = value;
+        if (Array.isArray(value) && value.length > 0 && Array.isArray(value[0])) {
+            // ComfyUI-Manager format: first element is the array of node types
+            nodeTypes = value[0];
+        }
+        
         if (Array.isArray(nodeTypes)) {
             nodeTypes.forEach(type => {
                 if (typeof type === 'string') {
