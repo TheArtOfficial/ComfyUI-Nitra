@@ -855,11 +855,12 @@ async function startDependencyAnalysis(container) {
     };
 
     // Store references for Select All / Deselect All buttons
-    matchedNodes = nodeResults.matches;
+    // Filter to only show missing (not installed) custom nodes
+    matchedNodes = nodeResults.matches.filter(n => !n.isInstalled);
     matchedModelsList = modelResults.matches;
 
-    // For custom nodes, only show matched packages (not individual unmatched node types)
-    contentArea.appendChild(createColumn("Custom Nodes", nodeResults.matches, 'nodes'));
+    // For custom nodes, only show missing packages (not installed ones)
+    contentArea.appendChild(createColumn("Missing Custom Nodes", matchedNodes, 'nodes'));
     // For models, show both matched and unmatched
     contentArea.appendChild(createColumn("Models", modelResults.matches, 'models', modelResults.missing));
     container.appendChild(contentArea);
