@@ -307,7 +307,7 @@ function isModelInstalled(filename, modelName, installedModels) {
     return false;
 }
 
-export function matchModels(detectedFiles, availableModels, installedModelNames = new Set(), threshold = 0.5) {
+export function matchModels(detectedFiles, availableModels, installedModelNames = new Set(), threshold = 0.85) {
     const matches = [];
     const missing = [];
 

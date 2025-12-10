@@ -124,6 +124,32 @@ else
   log "Using ComfyUI-Nitra repository default branch"
 fi
 
+# Install additional custom nodes
+clone_and_install_node() {
+  local NODE_NAME="$1"
+  local NODE_REPO="$2"
+  local NODE_DIR="$CUSTOM_NODES_DIR/$NODE_NAME"
+  
+  log "Ensuring $NODE_NAME custom node"
+  if [ ! -d "$NODE_DIR/.git" ]; then
+    git clone "$NODE_REPO" "$NODE_DIR"
+  else
+    log "$NODE_NAME already present, skipping clone"
+  fi
+  
+  if [ -f "$NODE_DIR/requirements.txt" ]; then
+    log "Installing $NODE_NAME requirements"
+    "$VENV_PIP" install -r "$NODE_DIR/requirements.txt"
+  fi
+}
+
+clone_and_install_node "rgthree-comfy" "https://github.com/rgthree/rgthree-comfy.git"
+clone_and_install_node "ComfyUI-VideoHelperSuite" "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git"
+clone_and_install_node "RES4LYF" "https://github.com/ClownsharkBatwing/RES4LYF.git"
+clone_and_install_node "ComfyUI-KJNodes" "https://github.com/kijai/ComfyUI-KJNodes.git"
+clone_and_install_node "comfyui_controlnet_aux" "https://github.com/Fannovel16/comfyui_controlnet_aux.git"
+clone_and_install_node "ComfyUI-Impact-Pack" "https://github.com/ltdrdata/ComfyUI-Impact-Pack.git"
+
 log "Upgrading pip/setuptools/wheel inside venv"
 "$VENV_PIP" install --upgrade pip setuptools wheel
 
