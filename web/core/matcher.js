@@ -297,12 +297,10 @@ export function matchModels(detectedFiles, availableModels, installedModelNames 
         const filename = typeof fileEntry === 'string' ? fileEntry : fileEntry.filename;
         const originalPath = typeof fileEntry === 'string' ? fileEntry : fileEntry.originalPath;
         
-        let bestMatch = null;
-        let bestScore = 0;
         const filenameLower = filename.toLowerCase();
         const filenameNoExt = stripExtension(filename).toLowerCase();
 
-        // 1. Try exact match (case-insensitive)
+        // 1. Try exact match first (case-insensitive) - return immediately if found
         const exactMatch = availableModels.find(m => 
             m.modelName && m.modelName.toLowerCase() === filenameLower
         );
@@ -312,7 +310,7 @@ export function matchModels(detectedFiles, availableModels, installedModelNames 
                 matchType: 'Exact', 
                 score: 1.0, 
                 detectedName: filename,
-                originalPath: originalPath,  // Keep original path for workflow fixing
+                originalPath: originalPath,
                 isInstalled: isModelInstalled(filename, exactMatch.modelName, installedModelNames),
                 hfTokenRequired: exactMatch.hfTokenRequired,
                 url: exactMatch.url || exactMatch.modelUrl || exactMatch.fileUrl || exactMatch.downloadUrl || exactMatch.href || ''
@@ -320,7 +318,7 @@ export function matchModels(detectedFiles, availableModels, installedModelNames 
             return;
         }
 
-        // 2. Try exact match without extension
+        // 2. Try exact match without extension - return immediately if found
         const exactNoExtMatch = availableModels.find(m => 
             m.modelName && stripExtension(m.modelName).toLowerCase() === filenameNoExt
         );
@@ -330,7 +328,7 @@ export function matchModels(detectedFiles, availableModels, installedModelNames 
                 matchType: 'Exact', 
                 score: 1.0, 
                 detectedName: filename,
-                originalPath: originalPath,  // Keep original path for workflow fixing
+                originalPath: originalPath,
                 isInstalled: isModelInstalled(filename, exactNoExtMatch.modelName, installedModelNames),
                 hfTokenRequired: exactNoExtMatch.hfTokenRequired,
                 url: exactNoExtMatch.url || exactNoExtMatch.modelUrl || exactNoExtMatch.fileUrl || exactNoExtMatch.downloadUrl || exactNoExtMatch.href || ''
@@ -338,7 +336,10 @@ export function matchModels(detectedFiles, availableModels, installedModelNames 
             return;
         }
 
-        // 3. Fuzzy matching with multiple strategies
+        // 3. No exact match found - iterate through ALL models to find best fuzzy match
+        let bestMatch = null;
+        let bestScore = 0;
+
         availableModels.forEach(model => {
             if (!model.modelName) return;
             
@@ -360,6 +361,7 @@ export function matchModels(detectedFiles, availableModels, installedModelNames 
                 if (containmentScore > score) score = Math.max(score, containmentScore * 0.9);
             }
             
+            // Update best match if this score is higher
             if (score > bestScore) {
                 bestScore = score;
                 bestMatch = model;
@@ -372,7 +374,7 @@ export function matchModels(detectedFiles, availableModels, installedModelNames 
                 matchType: 'Similar', 
                 score: bestScore,
                 detectedName: filename,
-                originalPath: originalPath,  // Keep original path for workflow fixing
+                originalPath: originalPath,
                 isInstalled: isModelInstalled(filename, bestMatch.modelName, installedModelNames),
                 hfTokenRequired: bestMatch.hfTokenRequired,
                 url: bestMatch.url || bestMatch.modelUrl || bestMatch.fileUrl || bestMatch.downloadUrl || bestMatch.href || ''
@@ -382,7 +384,7 @@ export function matchModels(detectedFiles, availableModels, installedModelNames 
             const detectedIsInstalled = isModelInstalled(filename, null, installedModelNames);
             missing.push({ 
                 name: filename, 
-                originalPath: originalPath,  // Keep original path for workflow fixing
+                originalPath: originalPath,
                 bestScore: bestScore, 
                 bestMatchName: bestMatch?.modelName, 
                 isInstalled: detectedIsInstalled 
