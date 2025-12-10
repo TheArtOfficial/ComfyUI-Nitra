@@ -3392,12 +3392,12 @@ def _get_common_nitra_dir():
     """Return a common user-writable directory for Nitra data, shared across all ComfyUI installations."""
     system_name = platform.system().lower()
     if system_name == 'windows':
-        # Use LOCALAPPDATA (C:\Users\<user>\AppData\Local\Nitra)
-        base = os.environ.get('LOCALAPPDATA')
-        if not base:
-            base = os.path.expanduser('~')
-            base = os.path.join(base, 'AppData', 'Local')
-        nitra_dir = os.path.join(base, 'Nitra')
+        # Use USERPROFILE directly to avoid Microsoft Store Python virtualization
+        # which redirects LOCALAPPDATA to a sandboxed location
+        home = os.environ.get('USERPROFILE')
+        if not home:
+            home = os.path.expanduser('~')
+        nitra_dir = os.path.join(home, '.nitra')
     elif system_name == 'darwin':
         # macOS: ~/Library/Application Support/Nitra
         nitra_dir = os.path.join(os.path.expanduser('~'), 'Library', 'Application Support', 'Nitra')
