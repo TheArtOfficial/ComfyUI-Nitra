@@ -3388,11 +3388,52 @@ def _update_extra_model_paths_yaml(base_path: str, detected_folders: Optional[Li
         return False
 
 
-def _get_device_state_path():
+def _get_common_nitra_dir():
+    """Return a common user-writable directory for Nitra data, shared across all ComfyUI installations."""
+    system_name = platform.system().lower()
+    if system_name == 'windows':
+        # Use LOCALAPPDATA (C:\Users\<user>\AppData\Local\Nitra)
+        base = os.environ.get('LOCALAPPDATA')
+        if not base:
+            base = os.path.expanduser('~')
+            base = os.path.join(base, 'AppData', 'Local')
+        nitra_dir = os.path.join(base, 'Nitra')
+    elif system_name == 'darwin':
+        # macOS: ~/Library/Application Support/Nitra
+        nitra_dir = os.path.join(os.path.expanduser('~'), 'Library', 'Application Support', 'Nitra')
+    else:
+        # Linux/other: ~/.local/share/nitra
+        xdg_data = os.environ.get('XDG_DATA_HOME')
+        if not xdg_data:
+            xdg_data = os.path.join(os.path.expanduser('~'), '.local', 'share')
+        nitra_dir = os.path.join(xdg_data, 'nitra')
+    return nitra_dir
+
+
+def _get_legacy_device_state_path():
+    """Return the old per-installation device state path (for migration)."""
     comfy_root = _get_comfy_root_from_here()
-    user_dir = os.path.join(comfy_root, 'user', 'default', 'nitra')
-    os.makedirs(user_dir, exist_ok=True)
-    return os.path.join(user_dir, 'device_token.json')
+    return os.path.join(comfy_root, 'user', 'default', 'nitra', 'device_token.json')
+
+
+def _get_device_state_path():
+    """Return path to device state file in the common user directory."""
+    nitra_dir = _get_common_nitra_dir()
+    os.makedirs(nitra_dir, exist_ok=True)
+    common_path = os.path.join(nitra_dir, 'device_state.json')
+
+    # Migrate from legacy per-installation path if needed
+    if not os.path.exists(common_path):
+        legacy_path = _get_legacy_device_state_path()
+        if os.path.exists(legacy_path):
+            try:
+                import shutil
+                shutil.copy2(legacy_path, common_path)
+                logger.info(f"Nitra: Migrated device state from {legacy_path} to {common_path}")
+            except Exception as e:
+                logger.warning(f"Nitra: Failed to migrate device state: {e}")
+
+    return common_path
 
 
 def _read_device_state() -> Dict[str, Any]:

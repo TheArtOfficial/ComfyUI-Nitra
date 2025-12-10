@@ -124,7 +124,12 @@ export function createUpdateInterface() {
             return;
         }
 
-        const currentHash = identity?.fingerprint_hash;
+        // Use the STORED fingerprint hash (from registration) if available,
+        // falling back to the freshly collected one. This handles cases where
+        // the system's MAC address or other identity components change between sessions.
+        const storedHash = identity?.stored_device?.fingerprint_hash;
+        const freshHash = identity?.fingerprint_hash || identity?.fingerprintHash;
+        const currentHash = storedHash || freshHash;
         listContainer.innerHTML = devices.map(device => {
             const isCurrent = currentHash && device.fingerprintHash && currentHash === device.fingerprintHash;
             const lastSeen = device.lastSeenAt || device.lastLoginAt || device.createdAt || 'Unknown';
