@@ -3612,10 +3612,36 @@ def _verify_device_registration(access_token: str, user_id: Optional[str], user_
         f"Device verify response: status={response.status_code} "
         f"count={len(devices)}"
     )
+    
+    # Collect fresh identity for comparison/debugging
+    fresh_identity = _collect_device_identity()
+    fresh_fingerprint = fresh_identity.get('fingerprint_hash')
+    
+    debug_log(
+        f"Device verify fingerprints: stored={stored_fingerprint[:16] if stored_fingerprint else 'None'}... "
+        f"fresh={fresh_fingerprint[:16] if fresh_fingerprint else 'None'}..."
+    )
+    
+    if stored_fingerprint != fresh_fingerprint:
+        debug_log(
+            f"Device verify: FINGERPRINT MISMATCH detected. "
+            f"Stored source might differ from current system state. "
+            f"Fresh source: {fresh_identity.get('fingerprint_source', 'unknown')}"
+        )
+    
     for device in devices:
-        if device.get('fingerprintHash') == stored_fingerprint:
+        device_hash = device.get('fingerprintHash')
+        if device_hash == stored_fingerprint:
+            debug_log(f"Device verify: matched stored fingerprint to device {device.get('deviceId')}")
+            return
+        if device_hash == fresh_fingerprint:
+            debug_log(f"Device verify: matched fresh fingerprint to device {device.get('deviceId')}")
             return
 
+    # Log all registered device hashes for debugging
+    registered_hashes = [d.get('fingerprintHash', 'N/A')[:16] + '...' for d in devices]
+    debug_log(f"Device verify: no match found. Registered hashes: {registered_hashes}")
+    
     raise DeviceVerificationError("This machine is not registered. Register it in the Nitra device settings.")
 
 

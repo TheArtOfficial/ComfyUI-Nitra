@@ -141,7 +141,12 @@ export async function fetchRegisteredDevices(identityOverride = null, options = 
         }
 
         const devices = Array.isArray(data?.devices) ? data.devices : [];
-        const currentHash = identity?.fingerprint_hash || identity?.fingerprintHash;
+        // Use the STORED fingerprint hash (from registration) if available,
+        // falling back to the freshly collected one. This handles cases where
+        // the system's MAC address or other identity components change between sessions.
+        const storedHash = identity?.stored_device?.fingerprint_hash;
+        const freshHash = identity?.fingerprint_hash || identity?.fingerprintHash;
+        const currentHash = storedHash || freshHash;
         const currentDevice = devices.find(device =>
             currentHash && device.fingerprintHash && currentHash === device.fingerprintHash
         );
