@@ -26,28 +26,38 @@ function deriveAuxId(repoUrl) {
 
 /**
  * Calculates similarity between two strings (0.0 to 1.0)
+ * Uses character frequency matching - position independent
+ * Counts how many characters match between strings regardless of order
  */
 function calculateSimilarity(str1, str2) {
     const s1 = normalize(str1);
     const s2 = normalize(str2);
     
     if (s1 === s2) return 1.0;
-    if (s1.length < 2 || s2.length < 2) return 0.0;
+    if (s1.length === 0 || s2.length === 0) return 0.0;
 
-    const bigrams1 = new Set();
-    for (let i = 0; i < s1.length - 1; i++) {
-        bigrams1.add(s1.substring(i, i + 2));
+    // Count character frequencies in both strings
+    const freq1 = {};
+    const freq2 = {};
+    
+    for (const char of s1) {
+        freq1[char] = (freq1[char] || 0) + 1;
     }
-
-    let intersection = 0;
-    for (let i = 0; i < s2.length - 1; i++) {
-        const bigram = s2.substring(i, i + 2);
-        if (bigrams1.has(bigram)) {
-            intersection++;
+    for (const char of s2) {
+        freq2[char] = (freq2[char] || 0) + 1;
+    }
+    
+    // Count matching characters (minimum frequency of each char in both strings)
+    let matches = 0;
+    for (const char in freq1) {
+        if (freq2[char]) {
+            matches += Math.min(freq1[char], freq2[char]);
         }
     }
-
-    return (2.0 * intersection) / (s1.length + s2.length - 2);
+    
+    // Return ratio: 2 * matches / (total chars in both strings)
+    // This gives 1.0 when strings have identical character sets
+    return (2.0 * matches) / (s1.length + s2.length);
 }
 
 /**
